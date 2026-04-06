@@ -1,0 +1,12 @@
+#ifndef VOXVIEWER_GLOBAL_H
+#define VOXVIEWER_GLOBAL_H
+
+#include <QtGlobal>
+
+#ifdef VOXVIEWER_LIBRARY
+    #define VOXVIEWER_EXPORT Q_DECL_EXPORT
+#else
+    #define VOXVIEWER_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif    // VOXVIEWER_GLOBAL_H

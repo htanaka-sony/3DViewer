@@ -1,0 +1,33 @@
+<RCC>
+    <qresource prefix="/">
+        <file>frag-shader.fsh</file>
+        <file>vert-shader.vsh</file>
+        <file>images/cube_01.png</file>
+        <file>images/cube_02.png</file>
+        <file>images/cube_03.png</file>
+        <file>images/cube_04.png</file>
+        <file>images/eyeris_icon.ico</file>
+        <file>images/ViewAxometric.png</file>
+        <file>images/ViewBack.png</file>
+        <file>images/ViewBottom.png</file>
+        <file>images/ViewFront.png</file>
+        <file>images/ViewLeft.png</file>
+        <file>images/ViewRight.png</file>
+        <file>images/ViewTop.png</file>
+        <file>images/ViewRotateBottom.png</file>
+        <file>images/ViewRotateLeft.png</file>
+        <file>images/ViewRotateRight.png</file>
+        <file>images/ViewRotateTop.png</file>
+        <file>images/LightSetting_Center.png</file>
+        <file>images/LightSetting_Down.png</file>
+        <file>images/LightSetting_Left.png</file>
+        <file>images/LightSetting_LeftDown.png</file>
+        <file>images/LightSetting_LeftUp.png</file>
+        <file>images/LightSetting_Right.png</file>
+        <file>images/LightSetting_RightDown.png</file>
+        <file>images/LightSetting_RightUp.png</file>
+        <file>images/LightSetting_Up.png</file>
+        <file>images/ZooIn.png</file>
+        <file>images/ZoomOut.png</file>
+    </qresource>
+</RCC>

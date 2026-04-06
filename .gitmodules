@@ -1,0 +1,9 @@
+[submodule "libs/3rdParty/earcut"]
+	path = libs/3rdParty/earcut
+	url = ssh://git@www.cae-tools-dev.sony.co.jp:8002/ECAEPublic/earcut.git
+[submodule "libs/3rdParty/tinycolormap"]
+	path = libs/3rdParty/tinycolormap
+	url = ssh://git@www.cae-tools-dev.sony.co.jp:8002/ECAEPublic/tinycolormap.git
+[submodule "libs/3rdParty/lz4"]
+	path = libs/3rdParty/lz4
+	url = ssh://git@www.cae-tools-dev.sony.co.jp:8002/ECAEPublic/lz4.git

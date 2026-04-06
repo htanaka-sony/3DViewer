@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shaders/pick_vertex.glsl</file>
+        <file>shaders/pick_fragment.glsl</file>
+        <file>shaders/vertex.glsl</file>
+        <file>shaders/fragment.glsl</file>
+        <file>shaders/voxel_vertex.glsl</file>
+        <file>shaders/geometry.glsl</file>
+        <file>shaders/segment_geometry.glsl</file>
+        <file>shaders/background_fragment.glsl</file>
+        <file>shaders/background_vertex.glsl</file>
+    </qresource>
+</RCC>
