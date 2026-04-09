@@ -22,6 +22,7 @@ class Voxel;
 class VoxelScalar;
 class Dimension;
 class MultiDimension;
+class RenderEditableMesh;
 }    // namespace Core
 using namespace Core;
 
@@ -103,7 +104,8 @@ public:
 
     /// Create
     void createRenderData(Node* node);
-    void createRenderVoxelData(Voxel* voxel);
+    void createRenderableData(Renderable* renderable);
+    void createRenderEditableMeshData(RenderEditableMesh* mesh);
 
     void suppressRender(bool suppress);
     bool isSuppressRender() { return m_suppress_render; }

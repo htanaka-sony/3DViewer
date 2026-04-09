@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
+ <class>MainWindow3DViewer</class>
+ <widget class="QMainWindow" name="MainWindow3DViewer">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -76,8 +76,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>1090</width>
-         <height>612</height>
+         <width>1100</width>
+         <height>643</height>
         </rect>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -103,7 +103,7 @@
      <x>0</x>
      <y>0</y>
      <width>1114</width>
-     <height>26</height>
+     <height>17</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuWindow_mainMenu">

@@ -8,15 +8,30 @@ DEFINE_META_OBJECT(Voxel)
 
 static constexpr int g_voxel_comp_length = 2;
 
-Voxel::Voxel() {}
+Voxel::Voxel()
+{
+    auto renderable = RenderMesh::createRenderable();
+    m_renderable    = renderable.ptr();
+}
 
-Voxel::Voxel(const Voxel& other) {}
+Voxel::Voxel(const Voxel& other)
+{
+    m_renderable = other.m_renderable;
+}
 
 Voxel::~Voxel()
 {
     deleteMemory();
+}
 
-    deleteRenderData(false);
+RenderMesh* Voxel::renderMesh()
+{
+    return (RenderMesh*)m_renderable.ptr();
+}
+
+void Voxel::setCreateSectionLine(bool create)
+{
+    renderMesh()->setCreateSectionLine(create);
 }
 
 Voxel::Voxel(const double x, const double y, const double z, const double dx, const double dy, const double dz,
@@ -47,8 +62,8 @@ void Voxel::init(const Point3d& org, const Point3d& delta, const Point3i& number
     m_delta  = delta;
     m_number = number;
 
-        initMemory();
-    }
+    initMemory();
+}
 
 void Voxel::initVoxelData()
 {
@@ -269,11 +284,7 @@ int Voxel::bytesPerXY() const
 
 void Voxel::clearDisplayData()
 {
-    m_vertices.clear();
-    m_indices.clear();
-    clearDisplayEditData();
-    markSegmentsGroupDirty();
-    markRenderDirty();
+    m_renderable->clearDisplayData();
     markBoxDirty();
 }
 
@@ -555,43 +566,6 @@ bool Voxel::cell(const Point3f& pos) const
     return m_data[iz][(ix + m_number.x() * iy) >> 3] & g_v_bits[(ix + m_number.x() * iy) & 0x07];
 }
 
-void Voxel::appendQuad(const Point3f& p0, const Point3f& p1, const Point3f& p2, const Point3f& p3,
-                       /*const Point3f& norm,*/ int get_seg_flg)
-{
-    unsigned int size = (unsigned int)m_vertices.size();
-    m_vertices.emplace_back(p0);
-    m_vertices.emplace_back(p1);
-    m_vertices.emplace_back(p2);
-    m_vertices.emplace_back(p3);
-
-    m_indices.emplace_back(size);        /// 0
-    m_indices.emplace_back(size + 1);    /// 1
-    m_indices.emplace_back(size + 2);    /// 2
-
-    m_indices.emplace_back(size + 2);    /// 2
-    m_indices.emplace_back(size + 3);    /// 3
-    m_indices.emplace_back(size);        /// 0
-
-    if (!m_create_section_line) {
-        return;
-    }
-    /// 線分の取得
-    if (get_seg_flg == 1) {
-        m_segments_indices.emplace_back(size + 1);
-        m_segments_indices.emplace_back(size + 2);
-
-        m_segments_indices.emplace_back(size + 3);
-        m_segments_indices.emplace_back(size + 0);
-    }
-    else if (get_seg_flg == 2) {
-        m_segments_indices.emplace_back(size + 0);
-        m_segments_indices.emplace_back(size + 1);
-
-        m_segments_indices.emplace_back(size + 2);
-        m_segments_indices.emplace_back(size + 3);
-    }
-}
-
 void Voxel::createDisplayData()
 {
     int nz = m_number.z();
@@ -635,6 +609,8 @@ void Voxel::createDisplayData()
 
     /// 大量のループなので逆にcriticalsectionのせいで遅い＆かつメモリが解放されない(競合起こしていたので直せば大丈夫かもしれないが）のでやめる
     // MutexWrapper mutex;
+
+    auto mesh = renderMesh();
 
     std::map<std::pair<int, int>, std::vector<int>> ranges_value;
 
@@ -735,7 +711,7 @@ void Voxel::createDisplayData()
                         const Point3f& start2 = pointf(start_x, end_y + 1, z);
                         const Point3f& end1   = pointf(end_x, start_y, z);
                         const Point3f& end2   = pointf(end_x, end_y + 1, z);
-                        appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+                        mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
                         start_y = y_values[ic];
                         end_y   = start_y;
                     }
@@ -746,7 +722,7 @@ void Voxel::createDisplayData()
                 const Point3f& start2 = pointf(start_x, end_y + 1, z);
                 const Point3f& end1   = pointf(end_x, start_y, z);
                 const Point3f& end2   = pointf(end_x, end_y + 1, z);
-                appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+                mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
             }
         }
     }
@@ -811,7 +787,7 @@ void Voxel::createDisplayData()
                         const Point3f& start2 = pointf(start_x, end_y + 1, z + 1);
                         const Point3f& end1   = pointf(end_x, start_y, z + 1);
                         const Point3f& end2   = pointf(end_x, end_y + 1, z + 1);
-                        appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
+                        mesh->appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
                         start_y = y_values[ic];
                         end_y   = start_y;
                     }
@@ -822,7 +798,7 @@ void Voxel::createDisplayData()
                 const Point3f& start2 = pointf(start_x, end_y + 1, z + 1);
                 const Point3f& end1   = pointf(end_x, start_y, z + 1);
                 const Point3f& end2   = pointf(end_x, end_y + 1, z + 1);
-                appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
+                mesh->appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
             }
         }
     }
@@ -930,7 +906,7 @@ void Voxel::createDisplayData()
                         const Point3f& start2 = pointf(x, start_y, end_z + 1);
                         const Point3f& end1   = pointf(x, end_y, start_z);
                         const Point3f& end2   = pointf(x, end_y, end_z + 1);
-                        appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+                        mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
                         start_z = z_values[ic];
                         end_z   = start_z;
                     }
@@ -941,7 +917,7 @@ void Voxel::createDisplayData()
                 const Point3f& start2 = pointf(x, start_y, end_z + 1);
                 const Point3f& end1   = pointf(x, end_y, start_z);
                 const Point3f& end2   = pointf(x, end_y, end_z + 1);
-                appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+                mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
             }
         }
     }
@@ -1005,7 +981,7 @@ void Voxel::createDisplayData()
                         const Point3f& start2 = pointf(x + 1, start_y, end_z + 1);
                         const Point3f& end1   = pointf(x + 1, end_y, start_z);
                         const Point3f& end2   = pointf(x + 1, end_y, end_z + 1);
-                        appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
+                        mesh->appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
                         start_z = z_values[ic];
                         end_z   = start_z;
                     }
@@ -1016,7 +992,7 @@ void Voxel::createDisplayData()
                 const Point3f& start2 = pointf(x + 1, start_y, end_z + 1);
                 const Point3f& end1   = pointf(x + 1, end_y, start_z);
                 const Point3f& end2   = pointf(x + 1, end_y, end_z + 1);
-                appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
+                mesh->appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
             }
         }
     }
@@ -1122,7 +1098,7 @@ void Voxel::createDisplayData()
                         const Point3f& start2 = pointf(end_x + 1, y, start_z);
                         const Point3f& end1   = pointf(start_x, y, end_z);
                         const Point3f& end2   = pointf(end_x + 1, y, end_z);
-                        appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+                        mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
                         start_x = x_values[ic];
                         end_x   = start_x;
                     }
@@ -1132,7 +1108,7 @@ void Voxel::createDisplayData()
                 const Point3f& start2 = pointf(end_x + 1, y, start_z);
                 const Point3f& end1   = pointf(start_x, y, end_z);
                 const Point3f& end2   = pointf(end_x + 1, y, end_z);
-                appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+                mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
             }
         }
     }
@@ -1196,7 +1172,7 @@ void Voxel::createDisplayData()
                         const Point3f& start2 = pointf(end_x + 1, y + 1, start_z);
                         const Point3f& end1   = pointf(start_x, y + 1, end_z);
                         const Point3f& end2   = pointf(end_x + 1, y + 1, end_z);
-                        appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
+                        mesh->appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
                         start_x = x_values[ic];
                         end_x   = start_x;
                     }
@@ -1206,7 +1182,7 @@ void Voxel::createDisplayData()
                 const Point3f& start2 = pointf(end_x + 1, y + 1, start_z);
                 const Point3f& end1   = pointf(start_x, y + 1, end_z);
                 const Point3f& end2   = pointf(end_x + 1, y + 1, end_z);
-                appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
+                mesh->appendQuad(start1, end1, end2, start2, /*norm,*/ get_seg_flg);
             }
         }
     }
@@ -1219,6 +1195,8 @@ void Voxel::createDisplayDataXYOnly()
     if (!m_data[0]) {
         return;
     }
+
+    auto mesh = renderMesh();
 
     int nx = m_number.x();
     int ny = m_number.y();
@@ -1288,7 +1266,7 @@ void Voxel::createDisplayDataXYOnly()
                     const Point3f& start2 = pointf(start_x, end_y + 1, 0);
                     const Point3f& end1   = pointf(end_x, start_y, 0);
                     const Point3f& end2   = pointf(end_x, end_y + 1, 0);
-                    appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+                    mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
                     start_y = y_values[ic];
                     end_y   = start_y;
                 }
@@ -1299,122 +1277,7 @@ void Voxel::createDisplayDataXYOnly()
             const Point3f& start2 = pointf(start_x, end_y + 1, 0);
             const Point3f& end1   = pointf(end_x, start_y, 0);
             const Point3f& end2   = pointf(end_x, end_y + 1, 0);
-            appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
-        }
-    }
-}
-
-BoundingBox3f Voxel::calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
-                                          bool /*including_text*/) const
-{
-    BoundingBox3f bbox;
-    if (only_visible && isEnableEditDisplayData()) {
-        const auto& vertices = displayEditVertices();
-        for (const auto& vertex : vertices) {
-            bbox.expandBy(parent_matrix * vertex);
-        }
-    }
-    else {
-        for (const auto& vertex : m_vertices) {
-            bbox.expandBy(parent_matrix * vertex);
-        }
-    }
-    return bbox;
-}
-
-void Voxel::updateBoundingBox()
-{
-    m_bbox.init();
-    if (isEnableEditDisplayData()) {
-        const auto& vertices = displayEditVertices();
-        for (const auto& vertex : vertices) {
-            m_bbox.expandBy(vertex);
-        }
-    }
-    else {
-        for (const auto& vertex : m_vertices) {
-            m_bbox.expandBy(vertex);
-        }
-    }
-    createGroupBoundingBox();
-    resetBoxDirty();
-}
-
-void Voxel::markRenderDirty()
-{
-    m_render_dirty = true;
-}
-
-void Voxel::resetRenderDirty()
-{
-    m_render_dirty = false;
-}
-
-void Voxel::setRenderData(void* render_data, std::function<void(void*, bool)> deleter)
-{
-    m_render_data         = render_data;
-    m_render_data_deleter = deleter;
-
-    resetRenderDirty();
-}
-
-bool Voxel::isRenderDirty() const
-{
-    return m_render_dirty;
-}
-
-void Voxel::deleteRenderData(bool direct_delete)
-{
-    /// Render
-    if (m_render_data && m_render_data_deleter) {
-        m_render_data_deleter(m_render_data, direct_delete);
-    }
-    m_render_data         = nullptr;
-    m_render_data_deleter = nullptr;
-}
-
-void Voxel::createDisplaySegmentsGroupData()
-{
-    if (!isSegmentsGroupDirty()) {
-        return;
-    }
-    const auto& vertex_list      = isEnableEditDisplayData() ? displayEditVertices() : displayVertices();
-    const auto& segments_indices = isEnableEditDisplayData() ? displayEditSegmentIndices() : displaySegmentIndices();
-
-    /// 高速化のため
-    int segments_group_count = (segments_indices.size() / 2 + 99) / 100;
-    m_segments_group_box.resize(segments_group_count);
-    m_segments_group_start_index.resize(segments_group_count, INT_MAX);
-    for (size_t i = 0; i < segments_indices.size(); i += 2) {
-        int group_count = (i / 2) / 100;
-
-        m_segments_group_box[group_count].expandBy(vertex_list[segments_indices[i]]);
-        m_segments_group_box[group_count].expandBy(vertex_list[segments_indices[i + 1]]);
-        if (m_segments_group_start_index[group_count] == INT_MAX) {
-            m_segments_group_start_index[group_count] = i;
-        }
-    }
-
-    resetSegmentsGroupDirty();
-}
-
-void Voxel::createGroupBoundingBox()
-{
-    const auto& vertex_list = isEnableEditDisplayData() ? displayEditVertices() : displayVertices();
-    const auto& index_list  = isEnableEditDisplayData() ? displayEditIndices() : displayIndices();
-
-    /// 高速化のため
-    int trias_group_count = (index_list.size() / 3 + 99) / 100;
-    m_tria_group_box.resize(trias_group_count);
-    m_tria_group_start_index.resize(trias_group_count, INT_MAX);
-    for (size_t i = 0; i < index_list.size(); i += 3) {
-        int group_count = (i / 3) / 100;
-
-        m_tria_group_box[group_count].expandBy(vertex_list[index_list[i]]);
-        m_tria_group_box[group_count].expandBy(vertex_list[index_list[i + 1]]);
-        m_tria_group_box[group_count].expandBy(vertex_list[index_list[i + 2]]);
-        if (m_tria_group_start_index[group_count] == INT_MAX) {
-            m_tria_group_start_index[group_count] = i;
+            mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
         }
     }
 }
@@ -1728,7 +1591,7 @@ void Voxel::decompressData(bool delete_decompress_data)
     }
 }
 
-Voxel::ReadPerformInfo *Voxel::createReadPerformInfo()
+Voxel::ReadPerformInfo* Voxel::createReadPerformInfo()
 {
     m_read_perform_info = new ReadPerformInfo;
     return m_read_perform_info;

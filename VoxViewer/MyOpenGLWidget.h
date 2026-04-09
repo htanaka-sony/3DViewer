@@ -14,6 +14,8 @@
 #include <set>
 #include <vector>
 
+#include "VoxViewerGlobal.h"
+
 #include "Vox3DForm.h"
 
 #include "Math/Point3d.h"
@@ -27,7 +29,7 @@ using namespace Render;
 
 class Vox3DForm;
 
-class MyOpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions {
+class VOXVIEWER_EXPORT MyOpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions {
     Q_OBJECT
 
     /// test
@@ -159,8 +161,10 @@ public:
     void               setColorLabelCount(int label_count);
     void               setShowColorBar(bool show);
     void               setColorMinMaxLabel(const std::wstring& min_label, const std::wstring& max_label);
-    void               createRenderData(Voxel* voxel);
+    void               createRenderData(Renderable* renderable);
     void               createRenderData(Node* node);
+
+    void createRenderEditableMesh(Node* node);
 
     void setVoxelScalarPriority(bool priority);
     void setClippingPlanes(const std::vector<Clipping::PlaneInfo>& clip_planes);

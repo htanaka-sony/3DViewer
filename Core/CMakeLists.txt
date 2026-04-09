@@ -71,6 +71,9 @@ add_library(${PROJECT_NAME} SHARED
     Scene/MultiDimension.cpp
     Scene/VoxelScalar.h
     Scene/VoxelScalar.cpp
+    Scene/RenderMesh.h
+    Scene/RenderMesh.cpp
+    Scene/Renderable.h
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

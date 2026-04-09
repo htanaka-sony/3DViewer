@@ -16,6 +16,12 @@ enum class ObjectType {
     MultiDimension = 251,    /// 自動寸法（マルチ寸法）
 };
 
+enum class RenderableType {
+    TypeNone = 0,    /// 未設定
+    RenderMesh,
+    RenderEditableMesh,
+};
+
 enum class AttributeType {
     TypeNone = 0,
 };

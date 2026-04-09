@@ -19,7 +19,8 @@ class Node;
 public:                                                                                                                \
     static RefPtr<ClassName> createObject();                                                                           \
     RefPtr<ClassName>        cloneObject() const;                                                                      \
-    static ObjectType        staticType();
+    static ObjectType        staticType();                                                                             \
+    ObjectType               type() const override;
 
 #define DEFINE_META_OBJECT(ClassName)                                                                                  \
     RefPtr<ClassName> ClassName::createObject()                                                                        \
@@ -31,6 +32,10 @@ public:                                                                         
         return RefPtr<ClassName>(new ClassName(*this));                                                                \
     }                                                                                                                  \
     ObjectType ClassName::staticType()                                                                                 \
+    {                                                                                                                  \
+        return ObjectType::ClassName;                                                                                  \
+    }                                                                                                                  \
+    ObjectType ClassName::type() const                                                                                 \
     {                                                                                                                  \
         return ObjectType::ClassName;                                                                                  \
     }

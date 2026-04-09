@@ -17,8 +17,6 @@ protected:
     ~VoxelScalar();
 
 public:
-    virtual ObjectType type() const override { return ObjectType::VoxelScalar; }
-
     void  markRenderTextureDirty();
     void  resetRenderTextureDirty();
     void  setRenderTextureData(void* render_data, std::function<void(void*, bool)> deleter);
@@ -53,7 +51,7 @@ public:
     void set2DTexture(bool texture_2d) { m_2d_texture = texture_2d; }
     bool is2DTexture() const { return m_2d_texture; }
 
-    virtual bool isCreateFill() const override { return !m_2d_texture; }
+    // virtual bool isCreateFill() const override { return !m_2d_texture; }
 
     /// 復帰可能な無効データを設定する
     /// 現状マイナスがありえないのでマイナスにし、復帰時にマイナスはプラスに戻す

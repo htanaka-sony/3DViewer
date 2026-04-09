@@ -10,6 +10,7 @@
 
 #include "Attribute.h"
 #include "Object.h"
+#include "Renderable.h"
 
 #include <algorithm>
 #include <set>
@@ -78,6 +79,14 @@ public:
         return nullptr;
     }
 
+    void              setRenderable(Renderable* renderable);
+    Renderable*       renderable();
+    const Renderable* renderable() const;
+
+    void* renderData();
+
+    void clearDisplayData();
+
     Shape* shape() const;
 
     void setBoundingBox(const BoundingBox3f& box);
@@ -112,7 +121,7 @@ public:
     BoundingBox3f shapeDisplayBoundingBox();
 
     void          updateBoundingBox();
-    BoundingBox3f objectBoundingBox();
+    BoundingBox3f renderableBoundingBox();
 
     /// 正確な取得
     BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix = Matrix4x4f(), bool only_visible = true,
@@ -147,6 +156,8 @@ private:
     VecNode m_children;
 
     RefPtr<Object> m_object;
+
+    RefPtr<Renderable> m_renderable;
 
     Matrix4x4f    m_matrix;
     BoundingBox3f m_bbox;

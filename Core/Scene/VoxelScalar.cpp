@@ -65,12 +65,14 @@ void VoxelScalar::setScalarData(float* data, bool need_to_delete)
 ////  ※ クリッピングも対応する
 void VoxelScalar::createShapeForTexture()
 {
+    auto mesh = renderMesh();
+
     if (is2DTexture()) {
         Point3f min_pos = Point3f(m_org.x(), m_org.y(), m_org.z());
         Point3f max_pos = min_pos + Point3f(m_delta.x() * m_number.x(), m_delta.y() * m_number.y(), 0.0f);
 
-        appendQuad(min_pos, Point3f(max_pos.x(), min_pos.y(), min_pos.z()), max_pos,
-                   Point3f(min_pos.x(), max_pos.y(), min_pos.z()), /*Point3f(0, 0, 1),*/ 0);
+        mesh->appendQuad(min_pos, Point3f(max_pos.x(), min_pos.y(), min_pos.z()), max_pos,
+                         Point3f(min_pos.x(), max_pos.y(), min_pos.z()), /*Point3f(0, 0, 1),*/ 0);
     }
     else {
         Point3f min_pos = Point3f(m_org.x(), m_org.y(), m_org.z());
@@ -78,31 +80,31 @@ void VoxelScalar::createShapeForTexture()
             min_pos + Point3f(m_delta.x() * m_number.x(), m_delta.y() * m_number.y(), m_delta.z() * m_number.z());
 
         /// Z-
-        appendQuad(min_pos, Point3f(min_pos.x(), max_pos.y(), min_pos.z()),
-                   Point3f(max_pos.x(), max_pos.y(), min_pos.z()), Point3f(max_pos.x(), min_pos.y(), min_pos.z()),
-                   /*Point3f(0, 0, -1),*/ 0);
+        mesh->appendQuad(min_pos, Point3f(min_pos.x(), max_pos.y(), min_pos.z()),
+                         Point3f(max_pos.x(), max_pos.y(), min_pos.z()), Point3f(max_pos.x(), min_pos.y(), min_pos.z()),
+                         /*Point3f(0, 0, -1),*/ 0);
 
         /// Z+
-        appendQuad(Point3f(min_pos.x(), min_pos.y(), max_pos.z()), Point3f(max_pos.x(), min_pos.y(), max_pos.z()),
-                   max_pos, Point3f(min_pos.x(), max_pos.y(), max_pos.z()), /*Point3f(0, 0, 1),*/ 0);
+        mesh->appendQuad(Point3f(min_pos.x(), min_pos.y(), max_pos.z()), Point3f(max_pos.x(), min_pos.y(), max_pos.z()),
+                         max_pos, Point3f(min_pos.x(), max_pos.y(), max_pos.z()), /*Point3f(0, 0, 1),*/ 0);
 
         /// X-
-        appendQuad(min_pos, Point3f(min_pos.x(), min_pos.y(), max_pos.z()),
-                   Point3f(min_pos.x(), max_pos.y(), max_pos.z()), Point3f(min_pos.x(), max_pos.y(), min_pos.z()),
-                   /*Point3f(-1, 0, 0),*/ 0);
+        mesh->appendQuad(min_pos, Point3f(min_pos.x(), min_pos.y(), max_pos.z()),
+                         Point3f(min_pos.x(), max_pos.y(), max_pos.z()), Point3f(min_pos.x(), max_pos.y(), min_pos.z()),
+                         /*Point3f(-1, 0, 0),*/ 0);
 
         /// X+
-        appendQuad(Point3f(max_pos.x(), min_pos.y(), min_pos.z()), Point3f(max_pos.x(), max_pos.y(), min_pos.z()),
-                   max_pos, Point3f(max_pos.x(), min_pos.y(), max_pos.z()), /*Point3f(1, 0, 0),*/ 0);
+        mesh->appendQuad(Point3f(max_pos.x(), min_pos.y(), min_pos.z()), Point3f(max_pos.x(), max_pos.y(), min_pos.z()),
+                         max_pos, Point3f(max_pos.x(), min_pos.y(), max_pos.z()), /*Point3f(1, 0, 0),*/ 0);
 
         /// Y-
-        appendQuad(min_pos, Point3f(max_pos.x(), min_pos.y(), min_pos.z()),
-                   Point3f(max_pos.x(), min_pos.y(), max_pos.z()), Point3f(min_pos.x(), min_pos.y(), max_pos.z()),
-                   /*Point3f(0, -1, 0),*/ 0);
+        mesh->appendQuad(min_pos, Point3f(max_pos.x(), min_pos.y(), min_pos.z()),
+                         Point3f(max_pos.x(), min_pos.y(), max_pos.z()), Point3f(min_pos.x(), min_pos.y(), max_pos.z()),
+                         /*Point3f(0, -1, 0),*/ 0);
 
         /// Y+
-        appendQuad(Point3f(min_pos.x(), max_pos.y(), min_pos.z()), Point3f(min_pos.x(), max_pos.y(), max_pos.z()),
-                   max_pos, Point3f(max_pos.x(), max_pos.y(), min_pos.z()), /*Point3f(0, 1, 0),*/ 0);
+        mesh->appendQuad(Point3f(min_pos.x(), max_pos.y(), min_pos.z()), Point3f(min_pos.x(), max_pos.y(), max_pos.z()),
+                         max_pos, Point3f(max_pos.x(), max_pos.y(), min_pos.z()), /*Point3f(0, 1, 0),*/ 0);
     }
 }
 
@@ -622,6 +624,8 @@ void VoxelScalar::createDisplayDataXYOnlyBoundary(Voxel* bundary_vox, int* offse
     return;
     */
 
+    auto mesh = renderMesh();
+
     std::vector<int> x_range(m_number.x());
     std::iota(x_range.begin(), x_range.end(), 0);
 
@@ -739,7 +743,7 @@ void VoxelScalar::createDisplayDataXYOnlyBoundary(Voxel* bundary_vox, int* offse
                     const Point3f& end2 = (end_0 && end_1) ? pointf_nearest_x_lower(org_x, delta_x, end_x, end_y + 1, 0)
                                                            : pointf(end_x, end_y + 1, 0);
 
-                    appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+                    mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
                     start_y = y_values[ic];
                     end_y   = start_y;
                 }
@@ -762,7 +766,7 @@ void VoxelScalar::createDisplayDataXYOnlyBoundary(Voxel* bundary_vox, int* offse
                                                    : pointf(end_x, start_y, 0);
             const Point3f& end2 = (end_0 && end_1) ? pointf_nearest_x_lower(org_x, delta_x, end_x, end_y + 1, 0)
                                                    : pointf(end_x, end_y + 1, 0);
-            appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
+            mesh->appendQuad(start1, start2, end2, end1, /*norm,*/ get_seg_flg);
         }
     }
 }

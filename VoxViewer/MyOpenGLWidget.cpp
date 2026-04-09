@@ -76,7 +76,7 @@ void MyOpenGLWidget::setMaterialIdToNode(std::vector<std::pair<int, RefPtr<Node>
 
     for (auto& [id, node] : material_id_node_list) {
         addMaterialIdToNode(id, node.ptr());
-        m_scene_render->createRenderVoxelData((Voxel*)node->object());
+        m_scene_render->createRenderableData(node->renderable());
     }
 }
 
@@ -1707,14 +1707,29 @@ void MyOpenGLWidget::setColorMinMaxLabel(const std::wstring& min_label, const st
     m_scene_render->setColorMinMaxLabel(min_label, max_label);
 }
 
-void MyOpenGLWidget::createRenderData(Voxel* voxel)
+void MyOpenGLWidget::createRenderData(Renderable* voxel)
 {
-    m_scene_render->createRenderVoxelData(voxel);
+    m_scene_render->createRenderableData(voxel);
 }
 
 void MyOpenGLWidget::createRenderData(Node* node)
 {
     m_scene_render->createRenderData(node);
+}
+
+void MyOpenGLWidget::createRenderEditableMesh(Node* node)
+{
+    auto object = node->object();
+    if (object->isVoxel()) {
+        Voxel* voxel       = (Voxel*)object;
+        auto   render_mesh = voxel->renderMesh();
+
+        RefPtr<RenderEditableMesh> mesh = RenderEditableMesh::createRenderable();
+        mesh->setOriginalMesh(render_mesh);
+        node->setRenderable(mesh.ptr());
+
+        createRenderData(mesh.ptr());
+    }
 }
 
 void MyOpenGLWidget::setVoxelScalarPriority(bool priority)

@@ -2720,7 +2720,7 @@ void ResultOutputThread::outputPictureText()
                                 m_gl_widget->set3DTextureColor(threshold_values, color_values);
                                 m_gl_widget->create3DTexture(opt_load.m_node->object<VoxelScalar>());
                                 // voxel_scalar->setVboUse(false);
-                                m_gl_widget->createRenderData(opt_load.m_node->object<VoxelScalar>());
+                                m_gl_widget->createRenderData(opt_load.m_node->renderable());
                             },
                             Qt::BlockingQueuedConnection);
                         if (m_cancel) {
@@ -2838,7 +2838,7 @@ void ResultOutputThread::outputPictureText()
                             this,
                             [this, &opt_load]() {
                                 m_gl_widget->create2DTexture(opt_load.m_node->object<VoxelScalar>());
-                                m_gl_widget->createRenderData(opt_load.m_node->object<VoxelScalar>());
+                                m_gl_widget->createRenderData(opt_load.m_node->renderable());
                             },
                             Qt::BlockingQueuedConnection);
                     }
@@ -3128,9 +3128,11 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
 
         VoxelScalar* voxel = target.m_node->object<VoxelScalar>();
 
+        RenderEditableMesh* mesh = (RenderEditableMesh*)target.m_node->renderable();
+
         bool        is_empty_data = false;
         const auto& vertex_list =
-            voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+            mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
         if (vertex_list.empty()) {
             is_empty_data = true;
         }
@@ -3140,7 +3142,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
 
         /// 範囲指定のとき元データを空にしている。
         if (is_empty_data) {
-            voxel->clearDisplayData();
+            target.m_node->clearDisplayData();
             voxel->createShapeForTexture();    /// BoundingBox用にSpecified Range適用の場合でも作る
 
             if (!specify_range) {
@@ -3153,7 +3155,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
                     child_target->hide();
                 }
                 voxel->setRangeMinMax(std::vector<std::pair<float, float>>());
-                voxel->markRenderDirty();
+                mesh->markRenderDirty();
                 // m_gl_widget->createRenderData(voxel);
             }
         }
@@ -3231,7 +3233,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
         if (is_empty_data) {
             if (specify_range) {
                 /// Specified Range適用のときはFitDisplayまで
-                voxel->clearDisplayData();
+                target.m_node->clearDisplayData();
             }
         }
 
@@ -3287,7 +3289,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
         if (is_empty_data) {
             if (!specify_range) {
                 voxel->setRangeMinMax(range_min, range_max);
-                voxel->clearDisplayData();
+                target.m_node->clearDisplayData();
             }
         }
 
@@ -3309,6 +3311,8 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
                 break;
             }
             VoxelScalar* voxel = target.m_node->object<VoxelScalar>();
+
+            RenderEditableMesh* mesh = (RenderEditableMesh*)target.m_node->renderable();
 
             const std::wstring& file_path = target.m_node->userAttributeString(L"File Path");
             if (file_path.empty()) {
@@ -3332,7 +3336,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
 
             bool        is_empty_data = false;
             const auto& vertex_list =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+                mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
             if (vertex_list.empty()) {
                 is_empty_data = true;
             }
@@ -3342,7 +3346,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
 
             /// 範囲指定のとき元データを空にしている。
             if (is_empty_data) {
-                voxel->clearDisplayData();
+                target.m_node->clearDisplayData();
                 voxel->createShapeForTexture();    /// BoundingBox用にSpecified Range適用の場合でも作る
 
                 if (!specify_range) {
@@ -3355,7 +3359,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
                         child_target->hide();
                     }
                     voxel->setRangeMinMax(std::vector<std::pair<float, float>>());
-                    voxel->markRenderDirty();
+                    mesh->markRenderDirty();
                     // m_gl_widget->createRenderData(voxel);
                 }
             }
@@ -3402,7 +3406,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
             if (is_empty_data) {
                 if (specify_range) {
                     /// Specified Range適用のときはFitDisplayまで
-                    voxel->clearDisplayData();
+                    target.m_node->clearDisplayData();
                 }
             }
 
@@ -3573,7 +3577,7 @@ void ResultOutputThread::outputPictureOneGroup(const QString& label)
             if (is_empty_data) {
                 if (!specify_range) {
                     voxel->setRangeMinMax(range_min, range_max);
-                    voxel->clearDisplayData();
+                    target.m_node->clearDisplayData();
                 }
             }
 

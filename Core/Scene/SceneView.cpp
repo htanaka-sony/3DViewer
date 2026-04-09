@@ -2,6 +2,8 @@
 #include "SceneGraph.h"
 
 #include <algorithm>
+#undef min
+#undef max
 
 CORE_NAMESPACE_BEGIN
 

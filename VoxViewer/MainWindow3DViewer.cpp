@@ -1,5 +1,5 @@
-#include "MainWindow.h"
-#include "ui_MainWindow.h"
+#include "MainWindow3DViewer.h"
+#include "ui_MainWindow3DViewer.h"
 
 #include <QDockWidget>
 #include "Vox3DForm.h"
@@ -28,7 +28,7 @@ int     GE_cellsizeY    = 1;
 int     GE_cellarrayX   = 1;
 int     GE_cellarrayY   = 1;
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow)
+MainWindow3DViewer::MainWindow3DViewer(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow3DViewer)
 {
     /*
     ui->setupUi(this);
@@ -171,14 +171,14 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     */
 }
 
-MainWindow::~MainWindow()
+MainWindow3DViewer::~MainWindow3DViewer()
 {
     // delete ui;
 }
 
-Vox3DForm* MainWindow::createVox3DForm(QMainWindow*& main_window)
+Vox3DForm* MainWindow3DViewer::createVox3DForm(QMainWindow*& main_window)
 {
-    main_window    = new MainWindow;
+    main_window    = new MainWindow3DViewer;
     auto vox3dform = new Vox3DForm(main_window);
     main_window->setCentralWidget(vox3dform);
 
@@ -191,12 +191,12 @@ Vox3DForm* MainWindow::createVox3DForm(QMainWindow*& main_window)
     return vox3dform;
 }
 
-void MainWindow::deleteVox3DForm(Vox3DForm* vox3dform)
+void MainWindow3DViewer::deleteVox3DForm(Vox3DForm* vox3dform)
 {
     delete vox3dform;
 }
 
-void MainWindow::showArguments(Vox3DForm* vox3dform)
+void MainWindow3DViewer::showArguments(Vox3DForm* vox3dform)
 {
     /// 引数対応
     QString     vox_file, fdtd_file;
@@ -230,8 +230,8 @@ void MainWindow::showArguments(Vox3DForm* vox3dform)
     }
 }
 
-bool MainWindow::m_mouse_moving = false;
-void MainWindow::moveEvent(QMoveEvent* event)
+bool MainWindow3DViewer::m_mouse_moving = false;
+void MainWindow3DViewer::moveEvent(QMoveEvent* event)
 {
     m_mouse_moving = true;
     /*
@@ -247,7 +247,7 @@ void MainWindow::moveEvent(QMoveEvent* event)
     QMainWindow::moveEvent(event);
 }
 
-void MainWindow::closeEvent(QCloseEvent* event)
+void MainWindow3DViewer::closeEvent(QCloseEvent* event)
 {
     hide();
 
@@ -264,19 +264,19 @@ void MainWindow::closeEvent(QCloseEvent* event)
 //     exit(0);
 // }
 
-void MainWindow::on_actionLoad_triggered()
+void MainWindow3DViewer::on_actionLoad_triggered()
 {    // プログラム終了して、GUIを閉じる。
     qDebug() << "[DEBUG]01 MainWin.cpp-on_actionLoad_file_triggered";
 }
 
-void MainWindow::on_action3Dviewer_triggered()
+void MainWindow3DViewer::on_action3Dviewer_triggered()
 {    // 3Dviewerを前面に表示する
     SubWindowVox3DForm->setVisible(true);
     SubWindowVox3DForm->raise();
     SubWindowVox3DForm->setWindowState(Qt::WindowActive);
 }
 
-void MainWindow::on_action2Dviewer_triggered()
+void MainWindow3DViewer::on_action2Dviewer_triggered()
 {    // 3Dviewerを前面に表示する
     qDebug() << "[DEBUG]01 on_action2Dviewer_triggered";
     SubWindowGeometryInputForm->setVisible(true);
@@ -284,7 +284,7 @@ void MainWindow::on_action2Dviewer_triggered()
     SubWindowGeometryInputForm->setWindowState(Qt::WindowActive);
 }
 
-void MainWindow::on_MW_pushButton_DEBUG_clicked()
+void MainWindow3DViewer::on_MW_pushButton_DEBUG_clicked()
 {
     // emit sendto3D_sendVoxpath(ui->MW_lineEdit_DEBUG->text());
     // emit sendto2D_sendVoxpath(ui->MW_lineEdit_DEBUG->text());
@@ -308,7 +308,7 @@ void MainWindow::on_MW_pushButton_DEBUG_clicked()
     //}
 }
 
-void MainWindow::on_pushButton_voxpathLoad_clicked()
+void MainWindow3DViewer::on_pushButton_voxpathLoad_clicked()
 {
     // ユーザーによるvoxファイル選択-------------------------------------------------------------------------
     QString     loadfileName = "";
@@ -342,7 +342,7 @@ void MainWindow::on_pushButton_voxpathLoad_clicked()
     }
 }
 
-void MainWindow::on_comboBox_voxChildWin_currentIndexChanged(const QString& arg1)
+void MainWindow3DViewer::on_comboBox_voxChildWin_currentIndexChanged(const QString& arg1)
 {
     if (ui->comboBox_voxChildWin->currentText() == "3Dviewr") {    // 3Dviewerを前面に表示する
         SubWindowVox3DForm->setVisible(true);

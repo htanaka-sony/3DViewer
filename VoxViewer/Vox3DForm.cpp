@@ -639,6 +639,11 @@ Vox3DForm::~Vox3DForm()
     delete ui;
 }
 
+QOpenGLWidget *Vox3DForm::openGLWidget()
+{
+    return ui->obj3dViewer;
+}
+
 void Vox3DForm::closeProcess()
 {
     /// 終了直前の処理

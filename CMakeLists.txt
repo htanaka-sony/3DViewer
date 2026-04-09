@@ -7,6 +7,11 @@ cmake_minimum_required(VERSION 3.19)
 # Version指定
 project(3DViewerBuild VERSION 1.0.0)
 
+# std::execution::par使っているのでMSVCに限定する（MinGW対応していない）
+if(NOT MSVC)
+    message(FATAL_ERROR "This project can only be built with Visual Studio (MSVC).")
+endif()
+
 add_definitions(
   -DPROJECT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
   -DPROJECT_VERSION_MINOR=${PROJECT_VERSION_MINOR}

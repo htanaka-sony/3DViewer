@@ -2478,6 +2478,7 @@ void ResultCtrl::setProgMessage(int value)
     }
 }
 
+/*
 void ResultCtrl::createRenderData(RangeCalcData* region)
 {
     if (m_pd) {
@@ -2488,7 +2489,7 @@ void ResultCtrl::createRenderData(RangeCalcData* region)
     }
     // region->m_create_voxel->setVboUse(false);
     ui->obj3dViewer->createRenderData(region->m_create_voxel.ptr());
-}
+}*/
 
 bool ResultCtrl::createVoxelRangeShape(const std::vector<Node*>&                         voxel_scales,
                                        const std::vector<std::tuple<float, float, int>>& range_list,
@@ -2621,8 +2622,8 @@ bool ResultCtrl::createVoxelRangeShape(const std::vector<Node*>&                
                                              voxel_ranges_list, region_params_list);
         connect(&create_thread, &CreateRangeVoxelScalar::setProgMessage, this, &ResultCtrl::setProgMessage,
                 Qt::QueuedConnection);
-        connect(&create_thread, &CreateRangeVoxelScalar::createRenderData, this, &ResultCtrl::createRenderData,
-                Qt::QueuedConnection);
+        // connect(&create_thread, &CreateRangeVoxelScalar::createRenderData, this, &ResultCtrl::createRenderData,
+        //         Qt::QueuedConnection);
         connect(&create_thread, &CreateRangeVoxelScalar::finished, this, [&thread_end] { thread_end = true; });
         create_thread.start();
 
@@ -2666,7 +2667,7 @@ bool ResultCtrl::createVoxelRangeShape(const std::vector<Node*>&                
             continue;
         }
 
-        if (region_param.m_create_voxel->displayIndices().size() == 0) {
+        if (region_param.m_create_voxel->renderMesh()->displayIndices().size() == 0) {
             continue;
         }
 
@@ -2678,6 +2679,7 @@ bool ResultCtrl::createVoxelRangeShape(const std::vector<Node*>&                
         }
         RefPtr<Node> new_child = new_node->addChild();
         new_child->setObject(region_param.m_create_voxel.ptr());
+        ui->obj3dViewer->createRenderEditableMesh(new_child.ptr());
     }
 
     std::map<float, std::set<float>> check_disp_values;
@@ -2729,7 +2731,7 @@ bool ResultCtrl::createVoxelRangeShape(const std::vector<Node*>&                
 
             /// 表示データ生成
             for (auto& ref_child : ref_node->children()) {
-                ui->obj3dViewer->createRenderData((Voxel*)ref_child->object());
+                ui->obj3dViewer->createRenderData(ref_child->renderable());
             }
 
             /// 元のボクセルノードの子ノードとして管理（インスタンス構造をここで利用してみる）
@@ -2738,10 +2740,10 @@ bool ResultCtrl::createVoxelRangeShape(const std::vector<Node*>&                
             voxel_scale->appendChild(new_copy.ptr());
         }
 
-        auto voxel_scalar_obj = voxel_scale->object<VoxelScalar>();
-        if (voxel_scalar_obj) {
-            voxel_scalar_obj->clearDisplayData();
-            ui->obj3dViewer->createRenderData(voxel_scalar_obj);
+        auto renderable = voxel_scale->renderable();
+        if (renderable) {
+            voxel_scale->clearDisplayData();
+            ui->obj3dViewer->createRenderData(renderable);
         }
     });
 
@@ -3076,10 +3078,10 @@ void ResultCtrl::clearVoxelRangeShape()
         if (voxel_scalar_obj) {
             voxel_scalar_obj->setRangeMinMax(std::vector<std::pair<float, float>>());
 
-            voxel_scalar_obj->clearDisplayData();
+            m_voxel_3d->clearDisplayData();
             voxel_scalar_obj->createShapeForTexture();
 
-            ui->obj3dViewer->createRenderData(voxel_scalar_obj);
+            ui->obj3dViewer->createRenderData(m_voxel_3d->renderable());
         }
     }
 
@@ -3090,10 +3092,10 @@ void ResultCtrl::clearVoxelRangeShape()
             if (voxel_scalar_obj) {
                 voxel_scalar_obj->setRangeMinMax(std::vector<std::pair<float, float>>());
 
-                voxel_scalar_obj->clearDisplayData();
+                node->clearDisplayData();
                 voxel_scalar_obj->createShapeForTexture();
 
-                ui->obj3dViewer->createRenderData(voxel_scalar_obj);
+                ui->obj3dViewer->createRenderData(node->renderable());
             }
         }
     }

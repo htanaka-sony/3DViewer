@@ -53,7 +53,11 @@
 // #include <vertex.h>
 // #include <QTextCodec>
 // For Japanese
+#ifdef EYERIS_3D_VISUALIZATION
+#define TR(s) (s)
+#else
 #define TR(s) (QString::fromLocal8Bit(s))
+#endif
 #include <QFile>        //kuroda
 #include <QFileInfo>    //kuroda
 #include <QHash>
@@ -67,6 +71,8 @@
 #include <QProgressDialog>
 #include <QtCore/QThread>
 //-end- for-vox
+
+#include "VoxViewerGlobal.h"
 
 #include "Scene/SceneGraph.h"
 using namespace Core;
@@ -102,12 +108,14 @@ class ResultCtrl;
 class UtilityCtrl;
 class MemoryMappedFile;
 
-class Vox3DForm : public QWidget {
+class VOXVIEWER_EXPORT Vox3DForm : public QWidget {
     Q_OBJECT
 
 public:
     explicit Vox3DForm(QWidget* parent = nullptr);
     ~Vox3DForm();
+
+    QOpenGLWidget *openGLWidget();
 
     bool eventFilter(QObject* obj, QEvent* event) override;
     void installEventFiltersForAllUiMembers(QObject* uiObject);

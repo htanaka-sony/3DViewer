@@ -1,4 +1,4 @@
-#include "MainWindow.h"
+#include "MainWindow3DViewer.h"
 #include "SettingCtrl.h"
 
 #include <QApplication>
@@ -100,11 +100,11 @@ int main(int argc, char* argv[])
 
     /// 暫定: 元のGUI
     QMainWindow* main_window;
-    auto         vox3dform = MainWindow::createVox3DForm(main_window);
+    auto         vox3dform = MainWindow3DViewer::createVox3DForm(main_window);
     ((QWidget*)main_window)->setWindowIcon(QIcon("://images/3DViewer.ico"));
-    MainWindow::showArguments(vox3dform);
+    MainWindow3DViewer::showArguments(vox3dform);
     auto ret = a.exec();
-    MainWindow::deleteVox3DForm(vox3dform);
+    MainWindow3DViewer::deleteVox3DForm(vox3dform);
 
     INFO() << "3D Viewer End";
 

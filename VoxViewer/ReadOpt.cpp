@@ -130,7 +130,7 @@ bool ReadOpt::read(const std::wstring& file_path, MyOpenGLWidget* gl_view, Vox3D
         gl_view->set3DTextureColor(threshold_values, color_values);
         create_success = gl_view->create3DTexture(voxel_scalar);
         // voxel_scalar->setVboUse(false);
-        gl_view->createRenderData(voxel_scalar);
+        gl_view->createRenderEditableMesh(new_node.ptr());
         gl_view->setOpt3DNode(new_node.ptr());
     }
 

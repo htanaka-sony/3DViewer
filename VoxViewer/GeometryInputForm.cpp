@@ -2,7 +2,7 @@
 #include "ui_GeometryInputForm.h"
 
 #include "CommonSubClass.h"    //-start- 2017.12.12 combo_scroll_stop
-#include "MainWindow.h"        // extern共通変数取得のため
+#include "MainWindow3DViewer.h"        // extern共通変数取得のため
 // #include "ui_MainWindow.h"
 #include "CommonSubFunc.h"
 

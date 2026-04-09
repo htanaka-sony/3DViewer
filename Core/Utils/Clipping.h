@@ -100,7 +100,7 @@ protected:
                                     const std::vector<unsigned int>& in_indices, const PlaneInfo& plane_info,
                                     std::vector<std::pair<Point3f, Point3f>>& out_edges, BoundingBox3f* clip_area);
 
-    bool clipPolygonWithPlaneSimple(Voxel* voxel, const PlaneInfo& plane_info,
+    bool clipPolygonWithPlaneSimple(RenderEditableMesh* mesh, const PlaneInfo& plane_info,
                                     std::vector<std::pair<Point3f, Point3f>>& out_edges, BoundingBox3f* clip_area);
 
     bool clipPolygonWithPlane(const std::vector<Point3f>& in_vertices, const std::vector<unsigned int>& in_indices,

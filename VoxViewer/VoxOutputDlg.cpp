@@ -2119,9 +2119,10 @@ void VoxOutputThread::outputPictureOneGroup(const QString& label)
                         continue;
                     }
 
-                    Voxel*      target_vox = target.m_node->object<Voxel>();
-                    const auto& indices    = target_vox->isEnableEditDisplayData() ? target_vox->displayEditIndices()
-                                                                                   : target_vox->displayIndices();
+                    RenderEditableMesh* mesh = (RenderEditableMesh*)target.m_node->renderable();
+
+                    const auto& indices =
+                        mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
                     if (indices.size() > 0) {
                         has_disp_data = true;

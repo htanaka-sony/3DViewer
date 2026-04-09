@@ -62,7 +62,6 @@ public:
     void initStrPosStart();
     void reverse();
 
-    virtual ObjectType    type() const override { return ObjectType::Dimension; }
     virtual void          updateBoundingBox() override;
     virtual BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
                                                bool including_text) const override;

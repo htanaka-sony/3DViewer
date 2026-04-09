@@ -2,13 +2,26 @@
 
 CORE_NAMESPACE_BEGIN
 
-Node::Node() : m_name(L""), m_parent(nullptr), m_object(nullptr), m_box_dirty(true), m_show(true), m_suppress(false) {}
+Node::Node()
+    : m_name(L"")
+    , m_parent(nullptr)
+    , m_object(nullptr)
+    , m_renderable(nullptr)
+    , m_box_dirty(true)
+    , m_show(true)
+    , m_suppress(false)
+{
+}
 
 Node::~Node()
 {
     if (m_object.ptr()) {
         m_object->deleteNode(this);
     }
+    if (m_renderable.ptr()) {
+        m_renderable->deleteNode(this);
+    }
+
     removeAllChild();
 }
 
@@ -133,6 +146,44 @@ Object* Node::object()
 const Object* Node::object() const
 {
     return m_object.ptr();
+}
+
+void Node::setRenderable(Renderable* renderable)
+{
+    m_renderable = renderable;
+}
+
+Renderable* Node::renderable()
+{
+    return m_renderable.ptr();
+}
+
+const Renderable* Node::renderable() const
+{
+    return m_renderable.ptr();
+}
+
+void* Node::renderData()
+{
+    if (m_renderable != nullptr) {
+        return m_renderable->renderData();
+    }
+    return nullptr;
+}
+
+void Node::clearDisplayData()
+{
+    if (m_renderable != nullptr) {
+        m_renderable->clearDisplayData();
+    }
+    /*
+    m_vertices.clear();
+    m_indices.clear();
+    clearDisplayEditData();
+    markSegmentsGroupDirty();
+    markRenderDirty();
+    */
+    markBoxDirty();
 }
 
 Shape* Node::shape() const
@@ -336,7 +387,7 @@ BoundingBox3f Node::displayBoundingBox()
 
     BoundingBox3f bbox;
     /// 自身のみのBoundingBox
-    bbox.expandBy(objectBoundingBox());
+    bbox.expandBy(renderableBoundingBox());
 
     for (auto& child : m_children) {
         bbox.expandBy(child->matrix() * child->displayBoundingBox());
@@ -350,7 +401,7 @@ BoundingBox3f Node::shapeBoundingBox()
     BoundingBox3f bbox;
     if (m_object != nullptr && m_object->isShape()) {
         /// 自身のみのBoundingBox
-        bbox.expandBy(objectBoundingBox());
+        bbox.expandBy(renderableBoundingBox());
     }
 
     for (auto& child : m_children) {
@@ -369,7 +420,7 @@ BoundingBox3f Node::shapeDisplayBoundingBox()
     BoundingBox3f bbox;
     if (m_object != nullptr && m_object->isShape()) {
         /// 自身のみのBoundingBox
-        bbox.expandBy(objectBoundingBox());
+        bbox.expandBy(renderableBoundingBox());
     }
 
     for (auto& child : m_children) {
@@ -381,7 +432,7 @@ BoundingBox3f Node::shapeDisplayBoundingBox()
 
 void Node::updateBoundingBox()
 {
-    BoundingBox3f new_bbox = objectBoundingBox();
+    BoundingBox3f new_bbox = renderableBoundingBox();
     for (auto& child : m_children) {
         new_bbox.expandBy(child->matrix() * child->boundingBox());
     }
@@ -389,9 +440,12 @@ void Node::updateBoundingBox()
     resetBoxDirty();
 }
 
-BoundingBox3f Node::objectBoundingBox()
+BoundingBox3f Node::renderableBoundingBox()
 {
-    if (m_object != nullptr) {
+    if (m_renderable != nullptr) {
+        return m_renderable->boundingBox();
+    }
+    else if (m_object != nullptr) {
         return m_object->boundingBox();
     }
     return BoundingBox3f();
@@ -406,7 +460,10 @@ BoundingBox3f Node::calculateBoundingBox(const Matrix4x4f& parent_matrix, bool o
     Matrix4x4f cur_matrix = parent_matrix * m_matrix;
 
     BoundingBox3f new_bbox;
-    if (m_object != nullptr) {
+    if (m_renderable != nullptr) {
+        new_bbox.expandBy(m_renderable->calculateBoundingBox(cur_matrix, only_visible, including_text));
+    }
+    else if (m_object != nullptr) {
         new_bbox.expandBy(m_object->calculateBoundingBox(cur_matrix, only_visible, including_text));
     }
 
@@ -503,6 +560,11 @@ RefPtr<Node> Node::copyInstance()
 
     copy_node->setObject(m_object.ptr());
     copy_node->setMatrix(m_matrix);
+
+    /// RenderDataはNode単位
+    if (m_renderable != nullptr) {
+        copy_node->setRenderable(m_renderable->cloneRenderable().ptr());
+    }
 
     /// 暫定 ー ものによってはこれだとダメだと思う
     copy_node->m_attribute.setAttributes(m_attribute.attributes());

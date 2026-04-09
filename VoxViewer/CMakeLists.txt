@@ -26,9 +26,9 @@ add_library(${PROJECT_NAME} SHARED
     LightSetting.ui
     LightSettingDlg.cpp
     LightSettingDlg.h
-    MainWindow.cpp
-    MainWindow.h
-    MainWindow.ui
+    MainWindow3DViewer.cpp
+    MainWindow3DViewer.h
+    MainWindow3DViewer.ui
 
     MyOpenGLWidget.cpp
     MyOpenGLWidget.h

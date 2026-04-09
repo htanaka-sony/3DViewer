@@ -93,6 +93,13 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
             return;
         }
 
+        auto renderable = node->renderable();
+        if (!renderable) {
+            /// 並列処理なので
+            // continue;
+            return;
+        }
+
         /// 高速化のための作業領域使いまわし
         ClippingWork* work_space       = nullptr;
         int           work_space_index = -1;
@@ -124,28 +131,25 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
             }
         }
 
-        switch (object->type()) {
-            case ObjectType::Voxel:
-            case ObjectType::VoxelScalar: {
-                Voxel* voxel = (Voxel*)object;
+        switch (renderable->type()) {
+            case RenderableType::RenderEditableMesh: {
+                RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
-                bool create_segment = voxel->isCreateSectionLine();
+                bool create_segment = mesh->isCreateSectionLine();
 
-                bool create_fill = voxel->isCreateFill();
-
-                if (voxel->isEnableEditDisplayData()) {
-                    voxel->clearDisplayEditData();
-                    voxel->markRenderDirty();
-                    voxel->markSegmentsGroupDirty();
-                    voxel->markBoxDirty();
+                if (mesh->isEnableEditDisplayData()) {
+                    mesh->clearDisplayEditData();
+                    mesh->markRenderDirty();
+                    mesh->markSegmentsGroupDirty();
+                    mesh->markBoxDirty();
                 }
 
                 bool after_2d_clip = false;
 
                 for (auto plane_info : target_plane_info_list) {
-                    std::vector<Point3f>&      vertex_list  = voxel->displayEditVerticesTemp();
-                    std::vector<unsigned int>& index_list   = voxel->displayEditIndicesTemp();
-                    std::vector<unsigned int>& segment_list = voxel->displayEditSegmentIndicesTemp();
+                    std::vector<Point3f>&      vertex_list  = mesh->displayEditVerticesTemp();
+                    std::vector<unsigned int>& index_list   = mesh->displayEditIndicesTemp();
+                    std::vector<unsigned int>& segment_list = mesh->displayEditSegmentIndicesTemp();
                     vertex_list.clear();
                     index_list.clear();
                     segment_list.clear();
@@ -155,15 +159,17 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                     }
 
                     /// VoxelScalar 2D Textureの場合
-                    bool data_is_2d = false;
+                    bool data_is_2d  = false;
+                    bool create_fill = true;
                     if (object->type() == ObjectType::VoxelScalar) {
-                        data_is_2d = ((VoxelScalar*)object)->is2DTexture();
+                        data_is_2d  = ((VoxelScalar*)object)->is2DTexture();
+                        create_fill = !data_is_2d;
                     }
 
                     /// 2Dの場合は許容値を大きくする（解析結果断面の表示で消えてしまうので）
                     float valid_eps = (plane_info.m_only_get_plane || data_is_2d) ? m_valid_eps * 2 : m_valid_eps / 2.0;
 
-                    auto check_plane = voxel->boundingBox().checkOverlapWithPlane(plane_info.m_plane, valid_eps);
+                    auto check_plane = mesh->boundingBox().checkOverlapWithPlane(plane_info.m_plane, valid_eps);
                     if (check_plane == PlaneOverlap::Above) {
                         if (!plane_info.m_only_get_plane) {
                             /// 何もしない（すべて残す）
@@ -171,11 +177,11 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                         }
                         else {
                             /// トライアングルなし
-                            voxel->clearDisplayEditData();
-                            voxel->setEnalbeEditDisplayData(true);
-                            voxel->markRenderDirty();
-                            voxel->markSegmentsGroupDirty();
-                            voxel->markBoxDirty();
+                            mesh->clearDisplayEditData();
+                            mesh->setEnalbeEditDisplayData(true);
+                            mesh->markRenderDirty();
+                            mesh->markSegmentsGroupDirty();
+                            mesh->markBoxDirty();
                             break;
                         }
                     }
@@ -187,21 +193,21 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                     }
                     else if (check_plane == PlaneOverlap::Below) {
                         /// トライアングルなし
-                        voxel->clearDisplayEditData();
-                        voxel->setEnalbeEditDisplayData(true);
-                        voxel->markRenderDirty();
-                        voxel->markSegmentsGroupDirty();
-                        voxel->markBoxDirty();
+                        mesh->clearDisplayEditData();
+                        mesh->setEnalbeEditDisplayData(true);
+                        mesh->markRenderDirty();
+                        mesh->markSegmentsGroupDirty();
+                        mesh->markBoxDirty();
                         break;
                     }
                     else if (check_plane == PlaneOverlap::BelowOnPlane) {
                         if (!plane_info.m_only_get_plane) {
                             /// トライアングルなし
-                            voxel->clearDisplayEditData();
-                            voxel->setEnalbeEditDisplayData(true);
-                            voxel->markRenderDirty();
-                            voxel->markSegmentsGroupDirty();
-                            voxel->markBoxDirty();
+                            mesh->clearDisplayEditData();
+                            mesh->setEnalbeEditDisplayData(true);
+                            mesh->markRenderDirty();
+                            mesh->markSegmentsGroupDirty();
+                            mesh->markBoxDirty();
                             break;
                         }
                     }
@@ -212,11 +218,11 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
 
                     /// 分割する
                     const auto& in_vertex_list =
-                        voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+                        mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
                     const auto& in_index_list =
-                        voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
-                    const auto& in_segment_list = voxel->isEnableEditDisplayData() ? voxel->displayEditSegmentIndices()
-                                                                                   : voxel->displaySegmentIndices();
+                        mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
+                    const auto& in_segment_list = mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices()
+                                                                                  : mesh->displaySegmentIndices();
 
                     vertex_list.reserve(in_vertex_list.size());
                     index_list.reserve(in_index_list.size());
@@ -225,19 +231,19 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                     if (plane_info.m_only_get_plane) {
                         if (clippingOnlyPlane(in_vertex_list, in_index_list, in_segment_list, plane_info, vertex_list,
                                               index_list, segment_list, create_segment, create_fill, work_space)) {
-                            voxel->setEnalbeEditDisplayData(true);
-                            voxel->switchEditDisplayBuffer();
-                            voxel->markRenderDirty();
-                            voxel->markSegmentsGroupDirty();
-                            voxel->markBoxDirty();
+                            mesh->setEnalbeEditDisplayData(true);
+                            mesh->switchEditDisplayBuffer();
+                            mesh->markRenderDirty();
+                            mesh->markSegmentsGroupDirty();
+                            mesh->markBoxDirty();
                         }
                         else {
                             /// トライアングルなし
-                            voxel->clearDisplayEditData();
-                            voxel->setEnalbeEditDisplayData(true);
-                            voxel->markRenderDirty();
-                            voxel->markSegmentsGroupDirty();
-                            voxel->markBoxDirty();
+                            mesh->clearDisplayEditData();
+                            mesh->setEnalbeEditDisplayData(true);
+                            mesh->markRenderDirty();
+                            mesh->markSegmentsGroupDirty();
+                            mesh->markBoxDirty();
                             break;
                         }
                     }
@@ -245,20 +251,20 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                         if (clipping(in_vertex_list, in_index_list, in_segment_list, plane_info, vertex_list,
                                      index_list, segment_list, create_segment, create_fill, after_2d_clip,
                                      work_space)) {
-                            voxel->setEnalbeEditDisplayData(true);
-                            voxel->switchEditDisplayBuffer();
-                            voxel->markRenderDirty();
-                            voxel->markSegmentsGroupDirty();
-                            voxel->markBoxDirty();
+                            mesh->setEnalbeEditDisplayData(true);
+                            mesh->switchEditDisplayBuffer();
+                            mesh->markRenderDirty();
+                            mesh->markSegmentsGroupDirty();
+                            mesh->markBoxDirty();
                         }
                     }
                 }
 
                 {
                     /// Clear
-                    std::vector<Point3f>&      vertex_list  = voxel->displayEditVerticesTemp();
-                    std::vector<unsigned int>& index_list   = voxel->displayEditIndicesTemp();
-                    std::vector<unsigned int>& segment_list = voxel->displayEditSegmentIndicesTemp();
+                    std::vector<Point3f>&      vertex_list  = mesh->displayEditVerticesTemp();
+                    std::vector<unsigned int>& index_list   = mesh->displayEditIndicesTemp();
+                    std::vector<unsigned int>& segment_list = mesh->displayEditSegmentIndicesTemp();
                     vertex_list.clear();
                     std::vector<Point3f> temp;
                     vertex_list.swap(temp);
@@ -294,6 +300,24 @@ bool Clipping::clear(Node* node, bool only_visible)
 
     bool ret = false;
     if (node->shape()) {
+        auto renderable = node->renderable();
+        if (renderable) {
+            switch (renderable->type()) {
+                case RenderableType::RenderEditableMesh: {
+                    RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
+                    if (mesh->isEnableEditDisplayData()) {
+                        mesh->clearDisplayEditData();
+                        mesh->markRenderDirty();
+                        mesh->markSegmentsGroupDirty();
+                        mesh->markBoxDirty();
+                        node->markBoxDirty();
+                        ret = true;
+                    }
+                    break;
+                }
+            }
+        }
+        /*
         auto object = node->object();
         switch (object->type()) {
             case ObjectType::Voxel:
@@ -310,6 +334,7 @@ bool Clipping::clear(Node* node, bool only_visible)
                 break;
             }
         }
+        */
     }
 
     for (auto child : node->children()) {
@@ -536,9 +561,11 @@ void Clipping::sectionLineForAutoLength(const Planef& clip_plane, const Planef& 
                 case ObjectType::Voxel: {
                     Voxel* voxel = (Voxel*)object;
 
+                    RenderEditableMesh* mesh = (RenderEditableMesh*)node->renderable();
+
                     /// クリッピングしない場合（直接切断する場合）
                     if (target_plane_info_list[0].m_plane.normal() == Point3f(0, 0, 0)) {
-                        clipPolygonWithPlaneSimple(voxel, target_plane_info_list[1], out_section.m_points, clip_area);
+                        clipPolygonWithPlaneSimple(mesh, target_plane_info_list[1], out_section.m_points, clip_area);
                     }
                     /// クリッピングしてから切断する場合
                     else {
@@ -563,16 +590,16 @@ void Clipping::sectionLineForAutoLength(const Planef& clip_plane, const Planef& 
                             clipping_mutex.unlock();
                         }
 
-                        std::vector<Point3f>&      vertex_list = voxel->displayEditVerticesTemp();
-                        std::vector<unsigned int>& index_list  = voxel->displayEditIndicesTemp();
+                        std::vector<Point3f>&      vertex_list = mesh->displayEditVerticesTemp();
+                        std::vector<unsigned int>& index_list  = mesh->displayEditIndicesTemp();
                         vertex_list.clear();
                         index_list.clear();
 
                         /// 平面トリア取得
                         const auto& in_vertex_list =
-                            voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+                            mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
                         const auto& in_index_list =
-                            voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+                            mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
                         vertex_list.reserve(in_vertex_list.size());
                         index_list.reserve(in_index_list.size());
@@ -583,14 +610,14 @@ void Clipping::sectionLineForAutoLength(const Planef& clip_plane, const Planef& 
                                                        out_section.m_points, clip_area);
                         }
                         else {
-                            clipPolygonWithPlaneSimple(voxel, target_plane_info_list[1], out_section.m_points,
+                            clipPolygonWithPlaneSimple(mesh, target_plane_info_list[1], out_section.m_points,
                                                        clip_area);
                         }
 
                         {
                             /// Clear
-                            std::vector<Point3f>&      vertex_list = voxel->displayEditVerticesTemp();
-                            std::vector<unsigned int>& index_list  = voxel->displayEditIndicesTemp();
+                            std::vector<Point3f>&      vertex_list = mesh->displayEditVerticesTemp();
+                            std::vector<unsigned int>& index_list  = mesh->displayEditIndicesTemp();
                             vertex_list.clear();
                             std::vector<Point3f> temp;
                             vertex_list.swap(temp);
@@ -652,7 +679,7 @@ bool Clipping::clipPolygonWithPlaneSimple(const std::vector<Point3f>&      in_ve
     return ret;
 }
 
-bool Clipping::clipPolygonWithPlaneSimple(Voxel* voxel, const PlaneInfo& plane_info,
+bool Clipping::clipPolygonWithPlaneSimple(RenderEditableMesh* mesh, const PlaneInfo& plane_info,
                                           std::vector<std::pair<Point3f, Point3f>>& out_edges, BoundingBox3f* clip_area)
 {
     // out_edges.clear();
@@ -661,12 +688,11 @@ bool Clipping::clipPolygonWithPlaneSimple(Voxel* voxel, const PlaneInfo& plane_i
     float       zero_eps = m_valid_eps / 2.0;    /// 暫定ーゆるくする
     bool        ret      = false;
 
-    const auto& group_boxes = voxel->displayTriaGroupBox();
-    const auto& group_start = voxel->displayTriaGroupStart();
+    const auto& group_boxes = mesh->displayTriaGroupBox();
+    const auto& group_start = mesh->displayTriaGroupStart();
 
-    const auto& in_vertices =
-        voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
-    const auto& in_indices = voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+    const auto& in_vertices = mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+    const auto& in_indices  = mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
     for (int group_index = 0; group_index < group_start.size(); ++group_index) {
         if (clip_area && !clip_area->isOverlap(group_boxes[group_index])) {

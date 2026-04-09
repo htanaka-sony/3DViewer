@@ -7,7 +7,11 @@
 #include <QKeyEvent>
 #include <QTimer>
 
+#ifdef EYERIS_3D_VISUALIZATION
+#define TR(s) (s)
+#else
 #define TR(s) (QString::fromLocal8Bit(s))    // 2018.09.12 日本語表示対応(メッセージボックスなど）
+#endif
 
 class GeometrySubScene : public QGraphicsScene {
     Q_OBJECT

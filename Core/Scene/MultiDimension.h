@@ -34,7 +34,6 @@ public:
     const std::vector<DimensionInfo>& dimensions() const { return m_dimensions; }
     std::vector<DimensionInfo>&       dimensions() { return m_dimensions; }
 
-    virtual ObjectType    type() const override { return ObjectType::MultiDimension; }
     virtual void          updateBoundingBox() override;
     virtual BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
                                                bool including_text) const override;

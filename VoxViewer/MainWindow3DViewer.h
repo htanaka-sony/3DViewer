@@ -1,5 +1,5 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef MAINWINDOW3DVIEWER_H
+#define MAINWINDOW3DVIEWER_H
 
 #include <QMainWindow>
 #include <QPointer>
@@ -32,7 +32,7 @@ extern int     GE_cellarrayY;
 
 // QT_BEGIN_NAMESPACE
 namespace Ui {
-class MainWindow;
+class MainWindow3DViewer;
 }
 // QT_END_NAMESPACE
 
@@ -40,12 +40,12 @@ class Vox3DForm;
 // class Zsub2Form;
 class GeometryInputForm;
 
-class VOXVIEWER_EXPORT MainWindow : public QMainWindow {
+class VOXVIEWER_EXPORT MainWindow3DViewer : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget* parent = nullptr);
-    ~MainWindow();
+    MainWindow3DViewer(QWidget* parent = nullptr);
+    ~MainWindow3DViewer();
 
     QStringList G_inCmdargList;    // .exeファイルがコマンドラインから実行された時の引数取得 voxfilepath,　cellsize,
                                    // cellary など
@@ -66,7 +66,7 @@ signals:
     void sendtoGI_viewStart();
 
 private:
-    Ui::MainWindow* ui;
+    Ui::MainWindow3DViewer* ui;
 
     // QPointer<Zsub2Form> mZsub2Form;
     // QMdiSubWindow *SubWindowZsub2Form;
@@ -85,4 +85,4 @@ private slots:
     void on_comboBox_voxChildWin_currentIndexChanged(const QString& arg1);
     void on_pushButton_voxpathLoad_clicked();
 };
-#endif    // MAINWINDOW_H
+#endif    // MAINWINDOW3DVIEWER_H

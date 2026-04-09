@@ -255,7 +255,6 @@ public:
 
 public slots:
     void setProgMessage(int value);
-    void createRenderData(RangeCalcData* voxel);
 
     void deleteResult2dList(bool all);
 
@@ -405,7 +404,6 @@ protected:
 
 signals:
     void setProgMessage(int value);
-    void createRenderData(ResultCtrl::RangeCalcData* voxel);
 
 protected:
     std::vector<char>*                            m_voxel_compress_data         = nullptr;

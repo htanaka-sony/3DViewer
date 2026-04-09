@@ -5,6 +5,7 @@
 
 #include "Scene/Dimension.h"
 #include "Scene/MultiDimension.h"
+#include "Scene/RenderMesh.h"
 #include "Scene/SceneGraph.h"
 #include "Scene/Voxel.h"
 #include "Scene/VoxelScalar.h"
@@ -17,6 +18,9 @@
 #include <algorithm>
 
 #include "Utils/Picking.h"
+
+#undef min
+#undef max
 
 #ifdef MEASURE_TIME
     #include <QElapsedTimer>
@@ -709,9 +713,13 @@ bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pi
                         GLuint  picked_id = red | (green << 8) | (blue << 16);
                         if (picked_id < m_stack_pick_objects.size() && picked_id >= 0) {
                             if (m_stack_pick_objects[picked_id].type() == PickType::Vertex) {
-                                min_depth = depth_buffer[depth_index];
-                                pick_data = m_stack_pick_objects[picked_id];
-                                pick_data.setPickPoint(((PickVertex*)pick_data.pickObject())->point());
+                                min_depth       = depth_buffer[depth_index];
+                                pick_data       = m_stack_pick_objects[picked_id];
+                                auto pick_point = ((PickVertex*)pick_data.pickObject())->point();
+                                if (pick_data.pickNode()) {
+                                    pick_point = pick_data.pickNode()->pathMatrix() * pick_point;
+                                }
+                                pick_data.setPickPoint(pick_point);
                             }
                         }
                     }
@@ -732,9 +740,13 @@ bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pi
                                     if (m_stack_pick_objects[picked_id].type() == PickType::Vertex) {
                                         /// 周囲に2通りの描画ある（自分以外で
 
-                                        min_depth = depth_buffer[index];
-                                        pick_data = m_stack_pick_objects[picked_id];
-                                        pick_data.setPickPoint(((PickVertex*)pick_data.pickObject())->point());
+                                        min_depth       = depth_buffer[index];
+                                        pick_data       = m_stack_pick_objects[picked_id];
+                                        auto pick_point = ((PickVertex*)pick_data.pickObject())->point();
+                                        if (pick_data.pickNode()) {
+                                            pick_point = pick_data.pickNode()->pathMatrix() * pick_point;
+                                        }
+                                        pick_data.setPickPoint(pick_point);
                                     }
                                 }
                             }
@@ -799,9 +811,15 @@ bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pi
                 }
 
                 if (pick_data.pickNode() != nullptr) {
+                    Matrix4x4f pathMatrix     = pick_data.pickNode()->pathMatrix();
+                    Matrix4x4f inv_pathMatrix = pathMatrix.inverted();
+
                     Point3f object_point = m_scene_view->unprojectFromScreen(
                         Point3f(mouse_pos.x() - pixel + target_x, mouse_pos.y() - pixel + target_y, min_depth));
-                    pick_data.setPickPoint(((PickEdge*)pick_data.pickObject())->closestPoint(object_point));
+                    auto pick_point = ((PickEdge*)pick_data.pickObject())->closestPoint(inv_pathMatrix * object_point);
+                    pick_point      = pathMatrix * pick_point;
+
+                    pick_data.setPickPoint(pick_point);
                     break;
                 }
             }
@@ -1364,15 +1382,8 @@ NEXT:
 
 void GLSceneRender::createRenderData(Node* node)
 {
-    if (Object* object = node->object()) {
-        switch (object->type()) {
-            case ObjectType::Voxel:
-            case ObjectType::VoxelScalar: {
-                createRenderVoxelData((Voxel*)object);
-            } break;
-            default:
-                break;
-        }
+    if (Renderable* renderable = node->renderable()) {
+        createRenderableData(renderable);
     }
 
     if (int num_chidlren = node->numChildren()) {
@@ -1382,18 +1393,43 @@ void GLSceneRender::createRenderData(Node* node)
     }
 }
 
-void GLSceneRender::createRenderVoxelData(Voxel* voxel)
+void GLSceneRender::createRenderableData(Renderable* renderable)
+{
+    if (!renderable) {
+        return;
+    }
+    switch (renderable->type()) {
+        case RenderableType::RenderEditableMesh:
+            createRenderEditableMeshData((RenderEditableMesh*)renderable);
+            break;
+    }
+}
+
+void GLSceneRender::createRenderEditableMeshData(RenderEditableMesh* mesh)
 {
     // DEBUG() << "createRenderVoxelData";
 
-    if (!voxel->isRenderDirty()) {
+    Renderable* target_mesh = mesh->isEnableEditDisplayData() ? (Renderable*)mesh : (Renderable*)mesh->originalMesh();
+    if (!target_mesh) {
         return;
     }
 
-    voxel->resetRenderDirty();
+    if (!target_mesh->isRenderDirty()) {
+        return;
+    }
 
-    const auto& vertices = voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
-    const auto& indices  = voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+    /// 編集する場合、インスタンス共有なければ元データ破棄してしまう(二重もちになるので）
+    if (mesh->isEnableEditDisplayData()) {
+        auto origin_mesh = mesh->originalMesh();
+        if (origin_mesh && origin_mesh->useCount() == 0) {    /// ObjectとRenderEditableMeshの2つ
+            origin_mesh->deleteRenderData(true);
+        }
+    }
+
+    target_mesh->resetRenderDirty();
+
+    const auto& vertices = mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+    const auto& indices  = mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
     if (indices.size() == 0) {
         return;
@@ -1402,13 +1438,13 @@ void GLSceneRender::createRenderVoxelData(Voxel* voxel)
     m_gl_widget->makeCurrent();
 
     /// 初回
-    RenderData* render_data = (RenderData*)voxel->renderData();
+    RenderData* render_data = (RenderData*)target_mesh->renderData();
     if (!render_data) {
         render_data = new RenderData(m_gl_widget);
         render_data->m_vao.create();
         render_data->m_vbo.create();
         render_data->m_ibo.create();
-        voxel->setRenderData(render_data, [](void* ptr, bool direct_delete) {
+        target_mesh->setRenderData(render_data, [](void* ptr, bool direct_delete) {
             if (direct_delete) {
                 delete static_cast<RenderData*>(ptr);
             }
@@ -1423,7 +1459,7 @@ void GLSceneRender::createRenderVoxelData(Voxel* voxel)
 
     render_data->m_use_vbo = false;
 
-    if (voxel->isVboUse()) {
+    if (mesh->isVboUse()) {
         render_data->m_vao.bind();
 
         if (render_data->m_vbo.isCreated()) {
@@ -1444,8 +1480,8 @@ void GLSceneRender::createRenderVoxelData(Voxel* voxel)
             render_data->m_ibo.write(0, indices.data(), indices_size);
 #else
                 /// Edge表示
-                const auto& seg_indices = voxel->isEnableEditDisplayData() ? voxel->displayEditSegmentIndices()
-                                                                           : voxel->displaySegmentIndices();
+                const auto& seg_indices =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
                 if (seg_indices.size() > 0) {
                     int indices_size     = (int)indices.size() * sizeof(GLuint);
                     int seg_indices_size = (int)seg_indices.size() * sizeof(GLuint);
@@ -1534,12 +1570,14 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
         return true;
     }
 
-    RenderData* render_data = (RenderData*)voxel->renderData();
+    RenderData* render_data = (RenderData*)node->renderData();
     if (!render_data) {
         return true;
     }
-    const auto& vertices = voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
-    const auto& indices  = voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+    RenderEditableMesh* mesh = (RenderEditableMesh*)node->renderable();
+
+    const auto& vertices = mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+    const auto& indices  = mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
     if (vertices.empty() || indices.empty()) {
         return true;
     }
@@ -1670,7 +1708,7 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
         /// Wireframe表示のとき かつ ピック描画ではないとき
         if (voxel_draw_wireframe && !m_cond_pick_render) {
             const auto& seg_indices =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditSegmentIndices() : voxel->displaySegmentIndices();
+                mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
             if (seg_indices.size() > 0) {
                 auto current_shader = m_cur_shader_program;
                 if (!m_cond_pick_render) {
@@ -1863,7 +1901,7 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
         if (voxel_draw_wireframe && !m_cond_pick_render) {
             /// Edge表示
             const auto& seg_indices =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditSegmentIndices() : voxel->displaySegmentIndices();
+                mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
             if (seg_indices.size() > 0) {
                 auto current_shader = m_cur_shader_program;
                 if (!m_cond_pick_render) {
@@ -2037,9 +2075,9 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
             const Matrix4x4f& matrix = curPathMatrix();
 
             /// 元々線分が多かったのでグループ分けしていたが、だいぶ減りはした（重複をすべて消した）。とりあえずこの仕組みは残しておく
-            voxel->createDisplaySegmentsGroupData();
+            mesh->createDisplaySegmentsGroupData();
             const auto& seg_indices =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditSegmentIndices() : voxel->displaySegmentIndices();
+                mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
 
             const Matrix4x4f inv_matrix = matrix.inverted();
 
@@ -2047,8 +2085,8 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
             frustum.preMulti(inv_matrix);
 
             // int         group_num   = voxel->displaySegmentsGroupCount();
-            const auto& group_boxes = voxel->displaySegmentsGroupBox();
-            const auto& group_start = voxel->displaySegmentsGroupStart();
+            const auto& group_boxes = mesh->displaySegmentsGroupBox();
+            const auto& group_start = mesh->displaySegmentsGroupStart();
 
             for (int group_index = 0; group_index < group_start.size(); ++group_index) {
                 if (!frustum.isBoxInFrustum(group_boxes[group_index])) {
@@ -2189,12 +2227,15 @@ bool GLSceneRender::renderVoxelScalar(Node* node, VoxelScalar* voxel)
         return true;
     }
 
-    RenderData* render_data = (RenderData*)voxel->renderData();
+    RenderData* render_data = (RenderData*)node->renderData();
     if (!render_data) {
         return true;
     }
-    const auto& vertices = voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
-    const auto& indices  = voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+
+    RenderEditableMesh* mesh = (RenderEditableMesh*)node->renderable();
+
+    const auto& vertices = mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+    const auto& indices  = mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
     if (vertices.empty() || indices.empty()) {
         return true;
     }

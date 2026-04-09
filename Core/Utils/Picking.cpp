@@ -32,6 +32,11 @@ bool Picking::getNearestPoint(Node* node, const Point3f& line_dir, const Point3f
         return false;
     }
 
+    auto renderable = node->renderable();
+    if (!renderable) {
+        return false;
+    }
+
     const auto& matrix     = node->pathMatrix();
     bool        has_matrix = !matrix.isIdentity();
 
@@ -39,12 +44,11 @@ bool Picking::getNearestPoint(Node* node, const Point3f& line_dir, const Point3f
 
     bool ret = false;
 
-    switch (object->type()) {
-        case ObjectType::Voxel:
-        case ObjectType::VoxelScalar: {
-            Voxel*      voxel = (Voxel*)object;
-            const auto& vertices =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+    switch (renderable->type()) {
+        case RenderableType::RenderEditableMesh: {
+            RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
+            const auto&         vertices =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
 
             for (const auto vertex : vertices) {
                 const auto& ver = has_matrix ? matrix.preMult(vertex) : vertex;
@@ -96,12 +100,13 @@ void Picking::bodyLineIntersectionMinimumTarget(const Matrix4x4f& inv_line_matri
 
     Matrix4x4f cur_matrix = inv_line_matrix * node->matrix();
 
-    auto object = node->object();
-    if (object) {
-        switch (object->type()) {
-            case ObjectType::Voxel:
-            case ObjectType::VoxelScalar: {
-                auto bbox = cur_matrix.preMult(object->boundingBox());
+    auto renderable = node->renderable();
+    if (renderable) {
+        switch (renderable->type()) {
+            case RenderableType::RenderEditableMesh: {
+                RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
+
+                auto bbox = cur_matrix.preMult(mesh->boundingBox());
 
                 if (bbox.valid()) {
                     if (bbox.xMin() > 0.0f + fTol || bbox.xMax() < 0.0f - fTol || bbox.yMin() > 0.0f + fTol
@@ -140,12 +145,11 @@ void Picking::bodyLineIntersectionMinimumTarget(const Matrix4x4f& inv_line_matri
 
         Matrix4x4f cur_matrix = inv_line_matrix * node->pathMatrix();
 
-        auto object = node->object();
-        if (object) {
-            switch (object->type()) {
-                case ObjectType::Voxel:
-                case ObjectType::VoxelScalar: {
-                    auto bbox = cur_matrix.preMult(object->boundingBox());
+        auto renderable = node->renderable();
+        if (renderable) {
+            switch (renderable->type()) {
+                case RenderableType::RenderEditableMesh: {
+                    auto bbox = cur_matrix.preMult(renderable->boundingBox());
 
                     if (bbox.valid()) {
                         if (bbox.xMin() > 0.0f + fTol || bbox.xMax() < 0.0f - fTol || bbox.yMin() > 0.0f + fTol
@@ -202,26 +206,25 @@ void Picking::bodyLineIntersectionMinimum(std::vector<TargetNodeInfo>& targets, 
         }
         loop_count++;
 
-        auto object = node->object();
-        if (!object) {
+        auto renderable = node->renderable();
+        if (!renderable) {
             continue;
         }
 
-        switch (object->type()) {
-            case ObjectType::Voxel:
-            case ObjectType::VoxelScalar: {
-                Voxel* voxel = (Voxel*)object;
+        switch (renderable->type()) {
+            case RenderableType::RenderEditableMesh: {
+                RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
                 const auto& vertex_list =
-                    voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
                 const auto& index_list =
-                    voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
                 SIntersectionInfo temp;
                 temp.m_node = node;
 
-                const auto& group_boxes = voxel->displayTriaGroupBox();
-                const auto& group_start = voxel->displayTriaGroupStart();
+                const auto& group_boxes = mesh->displayTriaGroupBox();
+                const auto& group_start = mesh->displayTriaGroupStart();
 
                 std::vector<TargetIndexInfo> target_index;
 
@@ -342,12 +345,11 @@ void Picking::bodyLineIntersection(const Matrix4x4f& inv_line_matrix, Node* node
 
     Matrix4x4f cur_matrix = inv_line_matrix * node->matrix();
 
-    auto object = node->object();
-    if (object) {
-        switch (object->type()) {
-            case ObjectType::Voxel:
-            case ObjectType::VoxelScalar: {
-                auto bbox = cur_matrix.preMult(object->boundingBox());
+    auto renderable = node->renderable();
+    if (renderable) {
+        switch (renderable->type()) {
+            case RenderableType::RenderEditableMesh: {
+                auto bbox = cur_matrix.preMult(renderable->boundingBox());
 
                 if (bbox.valid()) {
                     if (bbox.xMin() > 0.0f + fTol || bbox.xMax() < 0.0f - fTol || bbox.yMin() > 0.0f + fTol
@@ -366,18 +368,18 @@ void Picking::bodyLineIntersection(const Matrix4x4f& inv_line_matrix, Node* node
                     }
                 }
 
-                Voxel* voxel = (Voxel*)object;
+                RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
                 const auto& vertex_list =
-                    voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
                 const auto& index_list =
-                    voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
                 SIntersectionInfo temp;
                 temp.m_node = node;
 
-                const auto& group_boxes = voxel->displayTriaGroupBox();
-                const auto& group_start = voxel->displayTriaGroupStart();
+                const auto& group_boxes = mesh->displayTriaGroupBox();
+                const auto& group_start = mesh->displayTriaGroupStart();
 
                 for (int group_index = 0; group_index < group_start.size(); ++group_index) {
                     auto bbox = inv_line_matrix.preMult(group_boxes[group_index]);
@@ -636,14 +638,14 @@ bool Picking::triaZeroLineInersection(const Point3f& v0, const Point3f& v1, cons
 bool Picking::SIntersectionInfo::orgTria(bool global, Point3f& point0, Point3f& point1, Point3f& point2)
 {
     if (m_node) {
-        auto object = m_node->object();
-        if (object && object->isVoxel()) {
-            Voxel* voxel = (Voxel*)object;
+        auto renderable = m_node->renderable();
+        if (renderable && renderable->type() == RenderableType::RenderEditableMesh) {
+            RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
             const auto& vertex_list =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+                mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
             const auto& index_list =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+                mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
             if (m_tria_index >= 0 && m_tria_index < index_list.size()) {
                 const unsigned int* tri_indices = &index_list[m_tria_index];
@@ -671,14 +673,14 @@ bool Picking::SIntersectionInfo::orgTria(bool global, Point3f& point0, Point3f& 
 Point3f Picking::SIntersectionInfo::orgNorm(bool global)
 {
     if (m_node) {
-        auto object = m_node->object();
-        if (object && object->isVoxel()) {
-            Voxel* voxel = (Voxel*)object;
+        auto renderable = m_node->renderable();
+        if (renderable && renderable->type() == RenderableType::RenderEditableMesh) {
+            RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
             const auto& vertex_list =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditVertices() : voxel->displayVertices();
+                mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
             const auto& index_list =
-                voxel->isEnableEditDisplayData() ? voxel->displayEditIndices() : voxel->displayIndices();
+                mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
             if (m_tria_index >= 0 && m_tria_index < index_list.size()) {
                 const unsigned int* tri_indices = &index_list[m_tria_index];

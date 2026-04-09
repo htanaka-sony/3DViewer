@@ -2,6 +2,7 @@
 #define CORE_SHAPE_H
 
 #include "Object.h"
+#include "Renderable.h"
 
 CORE_NAMESPACE_BEGIN
 
@@ -13,12 +14,11 @@ protected:
     ~Shape();
 
 public:
-    virtual ObjectType    type() const override { return ObjectType::Shape; }
     virtual BoundingBox3f boundingBox() override;
     virtual BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
                                                bool including_text) const override;
 
-    virtual void updateBoundingBox() {}
+    virtual void updateBoundingBox();
 
     virtual void markBoxDirty(bool notify_parent = true);
     virtual void resetBoxDirty();
@@ -41,9 +41,11 @@ public:
     virtual bool isShape() const { return true; }
 
 protected:
-    Point4f       m_color;
-    BoundingBox3f m_bbox;
-    bool          m_box_dirty;
+    Point4f m_color;
+
+    RefPtr<Renderable> m_renderable;
+    // BoundingBox3f m_bbox;
+    // bool          m_box_dirty;
 };
 
 CORE_NAMESPACE_END
