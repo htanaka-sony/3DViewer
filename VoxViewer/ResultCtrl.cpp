@@ -2679,7 +2679,7 @@ bool ResultCtrl::createVoxelRangeShape(const std::vector<Node*>&                
         }
         RefPtr<Node> new_child = new_node->addChild();
         new_child->setObject(region_param.m_create_voxel.ptr());
-        ui->obj3dViewer->createRenderEditableMesh(new_child.ptr());
+        ui->obj3dViewer->createRenderData(new_child->renderable());
     }
 
     std::map<float, std::set<float>> check_disp_values;

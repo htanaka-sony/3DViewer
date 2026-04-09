@@ -89,11 +89,11 @@ public:
 
 private:
 #ifdef ENABLE_REFPTR_THREAD_SAFE
-    std::atomic<int> m_strong_count;    /// 強参照カウント
-    std::atomic<int> m_weak_count;      /// 弱参照カウント
+    mutable std::atomic<int> m_strong_count;    /// 強参照カウント
+    mutable std::atomic<int> m_weak_count;      /// 弱参照カウント
 #else
-    int m_strong_count;    /// 強参照カウント
-    int m_weak_count;      /// 弱参照カウント
+    mutable int m_strong_count;    /// 強参照カウント
+    mutable int m_weak_count;      /// 弱参照カウント
 #endif
 };
 

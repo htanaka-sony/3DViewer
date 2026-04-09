@@ -1707,29 +1707,14 @@ void MyOpenGLWidget::setColorMinMaxLabel(const std::wstring& min_label, const st
     m_scene_render->setColorMinMaxLabel(min_label, max_label);
 }
 
-void MyOpenGLWidget::createRenderData(Renderable* voxel)
+void MyOpenGLWidget::createRenderData(RenderableNode* renderable)
 {
-    m_scene_render->createRenderableData(voxel);
+    m_scene_render->createRenderableData(renderable);
 }
 
 void MyOpenGLWidget::createRenderData(Node* node)
 {
     m_scene_render->createRenderData(node);
-}
-
-void MyOpenGLWidget::createRenderEditableMesh(Node* node)
-{
-    auto object = node->object();
-    if (object->isVoxel()) {
-        Voxel* voxel       = (Voxel*)object;
-        auto   render_mesh = voxel->renderMesh();
-
-        RefPtr<RenderEditableMesh> mesh = RenderEditableMesh::createRenderable();
-        mesh->setOriginalMesh(render_mesh);
-        node->setRenderable(mesh.ptr());
-
-        createRenderData(mesh.ptr());
-    }
 }
 
 void MyOpenGLWidget::setVoxelScalarPriority(bool priority)

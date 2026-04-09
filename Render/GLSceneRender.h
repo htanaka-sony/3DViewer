@@ -104,7 +104,7 @@ public:
 
     /// Create
     void createRenderData(Node* node);
-    void createRenderableData(Renderable* renderable);
+    void createRenderableData(RenderableNode* renderable);
     void createRenderEditableMeshData(RenderEditableMesh* mesh);
 
     void suppressRender(bool suppress);

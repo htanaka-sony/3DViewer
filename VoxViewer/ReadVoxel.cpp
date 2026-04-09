@@ -256,10 +256,6 @@ bool ReadVoxel::read(const QString& path, MyOpenGLWidget* gl_view, Vox3DForm* fo
         return false;
     }
 
-    for (auto& [id, node] : material_id_node_list) {
-        gl_view->createRenderEditableMesh(node.ptr());
-    }
-
     if (m_pd) {
         m_pd->setValue(100);
     }

@@ -1382,7 +1382,7 @@ NEXT:
 
 void GLSceneRender::createRenderData(Node* node)
 {
-    if (Renderable* renderable = node->renderable()) {
+    if (RenderableNode* renderable = node->renderable()) {
         createRenderableData(renderable);
     }
 
@@ -1393,7 +1393,7 @@ void GLSceneRender::createRenderData(Node* node)
     }
 }
 
-void GLSceneRender::createRenderableData(Renderable* renderable)
+void GLSceneRender::createRenderableData(RenderableNode* renderable)
 {
     if (!renderable) {
         return;

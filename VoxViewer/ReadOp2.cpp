@@ -132,7 +132,7 @@ bool ReadOp2::read(const QStringList& paths, MyOpenGLWidget* gl_view, Vox3DForm*
 
         for (auto& voxel_scalar : create_voxels) {
             auto voxel_scalar_obj = voxel_scalar->object<VoxelScalar>();
-            gl_view->createRenderEditableMesh(voxel_scalar.ptr());
+            gl_view->createRenderData(voxel_scalar->renderable());
             gl_view->create2DTexture(voxel_scalar_obj);
         }
 

@@ -80,40 +80,18 @@ void RenderMesh::clearDisplayData()
     markBoxDirty();
 }
 
-DEFINE_META_RENDERABLE(RenderEditableMesh)
+DEFINE_META_RENDERABLENODE(RenderEditableMesh, RenderMesh)
 
-RenderEditableMesh::RenderEditableMesh() {}
+RenderEditableMesh::RenderEditableMesh(RenderMesh* mesh)
+{
+    setRenderableObject(mesh);
+}
 
 RenderEditableMesh::~RenderEditableMesh() {}
 
 RenderEditableMesh::RenderEditableMesh(const RenderEditableMesh& other)
 {
-    m_mesh = other.m_mesh;
-    m_mesh->m_use_count++;    /// Editなしでコピー
-
-    /*
-    m_segments_group_box         = other.m_segments_group_box;
-    m_segments_group_start_index = other.m_segments_group_start_index;
-
-    m_tria_group_box         = other.m_tria_group_box;
-    m_tria_group_start_index = other.m_tria_group_start_index;
-
-    m_edit_vertices         = other.m_edit_vertices;
-    m_edit_indices          = other.m_edit_indices;
-    m_edit_segments_indices = other.m_edit_segments_indices;
-
-    m_edit_vertices_2         = other.m_edit_vertices_2;
-    m_edit_indices_2          = other.m_edit_indices_2;
-    m_edit_segments_indices_2 = other.m_edit_segments_indices_2;
-
-    m_eneble_edit_display  = other.m_eneble_edit_display;
-    m_edit_buffer_2        = other.m_edit_buffer_2;
-    m_render_dirty         = other.m_render_dirty;
-    m_segments_group_dirty = other.m_segments_group_dirty;
-    */
-
-    // m_create_section_line = other.m_create_section_line;
-    // m_vbo_use             = other.m_vbo_use;
+    setRenderableObject(other.renderableObject());
 }
 
 void RenderEditableMesh::updateBoundingBox()
@@ -126,7 +104,7 @@ void RenderEditableMesh::updateBoundingBox()
         }
     }
     else {
-        for (const auto& vertex : m_mesh->m_vertices) {
+        for (const auto& vertex : originalMesh()->m_vertices) {
             m_bbox.expandBy(vertex);
         }
     }
@@ -145,7 +123,7 @@ BoundingBox3f RenderEditableMesh::calculateBoundingBox(const Matrix4x4f& parent_
         }
     }
     else {
-        for (const auto& vertex : m_mesh->m_vertices) {
+        for (const auto& vertex : originalMesh()->m_vertices) {
             bbox.expandBy(parent_matrix * vertex);
         }
     }
@@ -200,7 +178,7 @@ void RenderEditableMesh::createGroupBoundingBox()
 
 void RenderEditableMesh::clearDisplayData()
 {
-    m_mesh->clearDisplayData();
+    originalMesh()->clearDisplayData();
     clearDisplayEditData();
     markSegmentsGroupDirty();
     markRenderDirty();

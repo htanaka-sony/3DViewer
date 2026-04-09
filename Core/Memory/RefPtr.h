@@ -25,6 +25,15 @@ public:
             m_ptr->ref();
         }
     }
+
+    template <typename U>
+    RefPtr(const RefPtr<U>& other) : m_ptr((U*)other.ptr())
+    {
+        if (m_ptr) {
+            m_ptr->ref();
+        }
+    }
+
     RefPtr(RefPtr&& rp) noexcept : m_ptr(rp.m_ptr) { rp.m_ptr = nullptr; }
     ~RefPtr()
     {
@@ -87,11 +96,23 @@ public:
         return *this;
     }
 
-    RefPtr& operator=(T* ptr)
+    RefPtr& operator=(const RefPtr&& rp) noexcept
+    {
+        if (this != &rp) {
+            if (m_ptr) {
+                m_ptr->unref();
+            }
+            m_ptr    = rp.m_ptr;
+            rp.m_ptr = nullptr;
+        }
+        return *this;
+    }
+
+    RefPtr& operator=(const T* ptr)
     {
         if (m_ptr != ptr) {
-            T* tmpm_ptr = m_ptr;
-            m_ptr       = ptr;
+            const T* tmpm_ptr = m_ptr;
+            m_ptr             = (T*)ptr;
             if (m_ptr) {
                 m_ptr->ref();
             }

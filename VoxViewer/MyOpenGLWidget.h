@@ -161,10 +161,8 @@ public:
     void               setColorLabelCount(int label_count);
     void               setShowColorBar(bool show);
     void               setColorMinMaxLabel(const std::wstring& min_label, const std::wstring& max_label);
-    void               createRenderData(Renderable* renderable);
+    void               createRenderData(RenderableNode* renderable);
     void               createRenderData(Node* node);
-
-    void createRenderEditableMesh(Node* node);
 
     void setVoxelScalarPriority(bool priority);
     void setClippingPlanes(const std::vector<Clipping::PlaneInfo>& clip_planes);

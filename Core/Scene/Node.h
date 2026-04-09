@@ -79,9 +79,9 @@ public:
         return nullptr;
     }
 
-    void              setRenderable(Renderable* renderable);
-    Renderable*       renderable();
-    const Renderable* renderable() const;
+    void                  setRenderable(RenderableNode* renderable);
+    RenderableNode*       renderable();
+    const RenderableNode* renderable() const;
 
     void* renderData();
 
@@ -157,7 +157,7 @@ private:
 
     RefPtr<Object> m_object;
 
-    RefPtr<Renderable> m_renderable;
+    RefPtr<RenderableNode> m_renderable;
 
     Matrix4x4f    m_matrix;
     BoundingBox3f m_bbox;

@@ -74,6 +74,7 @@ add_library(${PROJECT_NAME} SHARED
     Scene/RenderMesh.h
     Scene/RenderMesh.cpp
     Scene/Renderable.h
+    Scene/Renderable.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

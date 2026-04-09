@@ -193,8 +193,8 @@ protected:
     }
 
 private:
-    T*            m_ptr;
-    ControlBlock* m_control_block;
+    T*                    m_ptr;
+    mutable ControlBlock* m_control_block;
 };
 
 CORE_NAMESPACE_END

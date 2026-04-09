@@ -1,4 +1,5 @@
 #include "Node.h"
+#include "Shape.h"
 
 CORE_NAMESPACE_BEGIN
 
@@ -135,6 +136,12 @@ Node* Node::child(int index)
 void Node::setObject(Object* object)
 {
     m_object = object;
+    if (m_object != nullptr) {
+        if (m_object->isShape()) {
+            m_renderable = RenderableNode::createRenderableNode(((Shape*)m_object.ptr())->renderableObject());
+        }
+    }
+
     markBoxDirty();
 }
 
@@ -148,17 +155,17 @@ const Object* Node::object() const
     return m_object.ptr();
 }
 
-void Node::setRenderable(Renderable* renderable)
+void Node::setRenderable(RenderableNode* renderable)
 {
     m_renderable = renderable;
 }
 
-Renderable* Node::renderable()
+RenderableNode* Node::renderable()
 {
     return m_renderable.ptr();
 }
 
-const Renderable* Node::renderable() const
+const RenderableNode* Node::renderable() const
 {
     return m_renderable.ptr();
 }
@@ -563,7 +570,7 @@ RefPtr<Node> Node::copyInstance()
 
     /// RenderDataはNode単位
     if (m_renderable != nullptr) {
-        copy_node->setRenderable(m_renderable->cloneRenderable().ptr());
+        copy_node->setRenderable((RenderableNode*)m_renderable->cloneRenderable().ptr());
     }
 
     /// 暫定 ー ものによってはこれだとダメだと思う

@@ -10,7 +10,7 @@ Referenced::~Referenced()
     assert(!m_control_block || refCount() == 0);
 }
 
-void Referenced::ref()
+void Referenced::ref() const
 {
     if (!m_control_block) {
         m_control_block = new ControlBlock;
@@ -18,7 +18,7 @@ void Referenced::ref()
     m_control_block->addStrong();
 }
 
-void Referenced::unref()
+void Referenced::unref() const
 {
     if (!m_control_block) {
         return;

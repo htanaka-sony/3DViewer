@@ -5,7 +5,7 @@
 
 CORE_NAMESPACE_BEGIN
 
-class CORE_EXPORT RenderMesh : public Renderable {
+class CORE_EXPORT RenderMesh : public RenderableObject {
     friend class RenderEditableMesh;
     DECLARE_META_RENDERABLE(RenderMesh)
 protected:
@@ -35,8 +35,6 @@ public:
 
     virtual void clearDisplayData() override;
 
-    int useCount() { return m_use_count; }
-
 protected:
     /// Display Data
     std::vector<Point3f>      m_vertices;
@@ -44,14 +42,12 @@ protected:
     std::vector<unsigned int> m_segments_indices;
 
     bool m_create_section_line = true;
-
-    std::atomic<int> m_use_count;    /// 描画で使っているか
 };
 
-class CORE_EXPORT RenderEditableMesh : public Renderable {
-    DECLARE_META_RENDERABLE(RenderEditableMesh)
+class CORE_EXPORT RenderEditableMesh : public RenderableNode {
+    DECLARE_META_RENDERABLENODE(RenderEditableMesh, RenderMesh)
 protected:
-    RenderEditableMesh();
+    RenderEditableMesh(RenderMesh* mesh);
     ~RenderEditableMesh();
 
     RenderEditableMesh(const RenderEditableMesh& other);
@@ -61,17 +57,17 @@ public:
     virtual BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
                                                bool including_text) const;
 
-    const std::vector<Point3f>&      displayVertices() const { return m_mesh->m_vertices; }
-    const std::vector<unsigned int>& displayIndices() const { return m_mesh->m_indices; }
-    const std::vector<unsigned int>& displaySegmentIndices() const { return m_mesh->m_segments_indices; }
+    const std::vector<Point3f>&      displayVertices() const { return originalMesh()->m_vertices; }
+    const std::vector<unsigned int>& displayIndices() const { return originalMesh()->m_indices; }
+    const std::vector<unsigned int>& displaySegmentIndices() const { return originalMesh()->m_segments_indices; }
 
-    std::vector<Point3f>&      displayVertices() { return m_mesh->m_vertices; }
-    std::vector<unsigned int>& displayIndices() { return m_mesh->m_indices; }
-    std::vector<unsigned int>& displaySegmentIndices() { return m_mesh->m_segments_indices; }
+    std::vector<Point3f>&      displayVertices() { return originalMesh()->m_vertices; }
+    std::vector<unsigned int>& displayIndices() { return originalMesh()->m_indices; }
+    std::vector<unsigned int>& displaySegmentIndices() { return originalMesh()->m_segments_indices; }
 
-    void setCreateSectionLine(bool create) { m_mesh->m_create_section_line = create; }
+    void setCreateSectionLine(bool create) { originalMesh()->m_create_section_line = create; }
 
-    bool isCreateSectionLine() const { return m_mesh->m_create_section_line; }
+    bool isCreateSectionLine() const { return originalMesh()->m_create_section_line; }
 
     const std::vector<Point3f>& displayEditVertices() const
     {
@@ -95,19 +91,7 @@ public:
 
     void switchEditDisplayBuffer() { m_edit_buffer_2 = !m_edit_buffer_2; }
     bool isEditDisplayBuffer2() { return m_edit_buffer_2; }
-    bool isEnableEditDisplayData() const { return m_eneble_edit_display; }
-    void setEnalbeEditDisplayData(bool enable)
-    {
-        if (m_eneble_edit_display != enable) {
-            if (enable) {
-                m_mesh->m_use_count--;
-            }
-            else {
-                m_mesh->m_use_count++;
-            }
-        }
-        m_eneble_edit_display = enable;
-    }
+
     void setDisplayEditData(std::vector<Point3f>& verticies, std::vector<unsigned int>& indices)
     {
         if (m_edit_buffer_2) {
@@ -121,10 +105,7 @@ public:
     }
     void clearDisplayEditData()
     {
-        if (m_eneble_edit_display) {
-            m_mesh->m_use_count++;
-        }
-        m_eneble_edit_display = false;
+        setEnalbeEditDisplayData(false);
         m_edit_vertices.clear();
         m_edit_indices.clear();
         m_edit_vertices_2.clear();
@@ -148,31 +129,13 @@ public:
 
     virtual void clearDisplayData() override;
 
-    void setOriginalMesh(RenderMesh* mesh)
-    {
-        m_mesh = mesh;
-        if (!m_eneble_edit_display) {
-            m_mesh->m_use_count++;
-        }
-    }
-    RenderMesh* originalMesh() { return m_mesh.ptr(); }
+    RenderMesh*       originalMesh() { return (RenderMesh*)renderableObject(); }
+    const RenderMesh* originalMesh() const { return (const RenderMesh*)renderableObject(); }
 
     bool isVboUse() { return m_vbo_use; }
     void setVboUse(bool use) { m_vbo_use = use; }
 
-    virtual void* renderData()
-    {
-        if (m_eneble_edit_display) {
-            return m_render_data;
-        }
-        else {
-            return m_mesh->m_render_data;
-        }
-    }
-
 protected:
-    RefPtr<RenderMesh> m_mesh;
-
     /// TODO: 暫定: 描画高速化のため線分をグループで分ける
     std::vector<BoundingBox3f> m_segments_group_box;
     std::vector<unsigned int>  m_segments_group_start_index;
@@ -194,7 +157,6 @@ protected:
     /// フラグ
     bool m_eneble_edit_display  = false;
     bool m_edit_buffer_2        = false;
-    bool m_render_dirty         = true;
     bool m_segments_group_dirty = true;
 
     bool m_vbo_use = true;

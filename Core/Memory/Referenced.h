@@ -13,8 +13,8 @@ class CORE_EXPORT Referenced {
     friend class WeakRefPtr;
 
 public:
-    void ref();
-    void unref();
+    void ref() const;
+    void unref() const;
     int  refCount() const;
 
 protected:
@@ -24,7 +24,7 @@ protected:
     int weakRefCount() const;
 
 private:
-    ControlBlock* m_control_block;
+    mutable ControlBlock* m_control_block;
 };
 
 CORE_NAMESPACE_END

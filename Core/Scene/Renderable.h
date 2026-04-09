@@ -39,6 +39,31 @@ public:                                                                         
         return RenderableType::ClassName;                                                                              \
     }
 
+#define DECLARE_META_RENDERABLENODE(ClassName, BaseClassName)                                                          \
+public:                                                                                                                \
+    static RefPtr<ClassName> createRenderable(BaseClassName* base);                                                    \
+    RefPtr<Renderable>       cloneRenderable() const;                                                                  \
+    static RenderableType    staticType();                                                                             \
+    RenderableType           type() const override;
+
+#define DEFINE_META_RENDERABLENODE(ClassName, BaseClassName)                                                           \
+    RefPtr<ClassName> ClassName::createRenderable(BaseClassName* base)                                                 \
+    {                                                                                                                  \
+        return RefPtr<ClassName>(new ClassName(base));                                                                 \
+    }                                                                                                                  \
+    RefPtr<Renderable> ClassName::cloneRenderable() const                                                              \
+    {                                                                                                                  \
+        return RefPtr<Renderable>(new ClassName(*this));                                                               \
+    }                                                                                                                  \
+    RenderableType ClassName::staticType()                                                                             \
+    {                                                                                                                  \
+        return RenderableType::ClassName;                                                                              \
+    }                                                                                                                  \
+    RenderableType ClassName::type() const                                                                             \
+    {                                                                                                                  \
+        return RenderableType::ClassName;                                                                              \
+    }
+
 class CORE_EXPORT Renderable : public Referenced {
 protected:
     Renderable()                        = default;
@@ -98,6 +123,72 @@ protected:
     BoundingBox3f m_bbox;
     bool          m_box_dirty    = true;
     bool          m_render_dirty = true;
+};
+
+/// Objectが持つ(元の表示データ)
+class CORE_EXPORT RenderableObject : public Renderable {
+    friend class RenderableNode;
+
+public:
+    int useCount() const { return m_use_count; }
+
+protected:
+    void addUseCount() const { m_use_count++; }
+    void delUseCount() const { m_use_count--; }
+
+    mutable std::atomic<int> m_use_count;    /// 描画で使っているか
+};
+
+/// Nodeが持つ(編集した表示データ)
+class CORE_EXPORT RenderableNode : public Renderable {
+public:
+    static RefPtr<RenderableNode> createRenderableNode(RenderableObject* renderable);
+
+    virtual void* renderData()
+    {
+        if (m_eneble_edit_display) {
+            return m_render_data;
+        }
+        else {
+            if (m_renderable_object != nullptr) {
+                return m_renderable_object->m_render_data;
+            }
+        }
+        return nullptr;
+    }
+
+    bool isEnableEditDisplayData() const { return m_eneble_edit_display; }
+    void setEnalbeEditDisplayData(bool enable)
+    {
+        if (m_renderable_object != nullptr) {
+            if (m_eneble_edit_display != enable) {
+                if (enable) {
+                    m_renderable_object->delUseCount();
+                }
+                else {
+                    m_renderable_object->addUseCount();
+                }
+            }
+        }
+        m_eneble_edit_display = enable;
+    }
+
+    const RenderableObject* renderableObject() const { return m_renderable_object.ptr(); }
+    RenderableObject*       renderableObject() { return m_renderable_object.ptr(); }
+
+protected:
+    void setRenderableObject(const RenderableObject* renderable)
+    {
+        m_renderable_object = renderable;
+        if (m_renderable_object != nullptr) {
+            if (!m_eneble_edit_display) {
+                m_renderable_object->addUseCount();
+            }
+        }
+    }
+
+    RefPtr<RenderableObject> m_renderable_object;
+    bool                     m_eneble_edit_display = false;
 };
 
 CORE_NAMESPACE_END

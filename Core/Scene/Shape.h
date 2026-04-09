@@ -40,10 +40,12 @@ public:
 
     virtual bool isShape() const { return true; }
 
+    RenderableObject* renderableObject() { return m_renderable.ptr(); }
+
 protected:
     Point4f m_color;
 
-    RefPtr<Renderable> m_renderable;
+    RefPtr<RenderableObject> m_renderable;
     // BoundingBox3f m_bbox;
     // bool          m_box_dirty;
 };
