@@ -447,15 +447,15 @@ void GLSceneRender::paintGL(int area[4])
     // m_gl_widget->doneCurrent();
 }
 
-bool GLSceneRender::pickGL(const Point2i& mouse_pos, int pixel, PickData& pick_data, RenderSnap snap,
+bool GLSceneRender::pickGL(const Point2i& mouse_pos, int pixel, PickData& pick_data, PickSnap snap,
                            std::vector<Node*>* all_nodes, const Point3f* obj_pos)
 {
-    if (!all_nodes || snap == RenderSnap::SnapNone) {
+    if (!all_nodes || snap == PickSnap::SnapNone) {
         return pickGLFunc(mouse_pos, pixel, pick_data, snap, all_nodes, obj_pos);
     }
     else {
         PickData dummy;
-        pickGLFunc(mouse_pos, pixel, dummy, RenderSnap::SnapNone, all_nodes, obj_pos);
+        pickGLFunc(mouse_pos, pixel, dummy, PickSnap::SnapNone, all_nodes, obj_pos);
         if (all_nodes->size() > 0) {
             setPickNodeFilter(std::set<Node*>(all_nodes->begin(), all_nodes->end()));
             bool ret = pickGLFunc(mouse_pos, pixel, pick_data, snap);
@@ -470,7 +470,7 @@ bool GLSceneRender::pickGL(const Point2i& mouse_pos, int pixel, PickData& pick_d
     return false;
 }
 
-bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pick_data, RenderSnap snap,
+bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pick_data, PickSnap snap,
                                std::vector<Node*>* all_nodes, const Point3f* /*obj_pos*/)
 {
     setDpiScale();
@@ -590,7 +590,7 @@ bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pi
 
     float min_depth = 1.0f;
 
-    if (snap == RenderSnap::SnapNone) {
+    if (snap == PickSnap::SnapNone) {
         m_gl_function->glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         popMatrix();
@@ -700,7 +700,7 @@ bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pi
         if (err != GL_NO_ERROR) DEBUG() << "GL ERROR PickGL: " << err;
         m_gl_widget->doneCurrent();
 
-        if (snap & RenderSnap::SnapVertex) {
+        if (snap & PickSnap::SnapVertex) {
             for (int ic = 0; ic < 2; ++ic) {
                 auto& pixels       = ic == 0 ? pixels_text : pixels_obj;
                 auto& depth_buffer = ic == 0 ? depth_buffer_text : depth_buffer_obj;
@@ -760,7 +760,7 @@ bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pi
             }
         }
 
-        if (pick_data.pickNode() == nullptr && (snap & RenderSnap::SnapEdge)) {
+        if (pick_data.pickNode() == nullptr && (snap & PickSnap::SnapEdge)) {
             for (int ic = 0; ic < 2; ++ic) {
                 auto& pixels       = ic == 0 ? pixels_text : pixels_obj;
                 auto& depth_buffer = ic == 0 ? depth_buffer_text : depth_buffer_obj;
@@ -825,7 +825,7 @@ bool GLSceneRender::pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pi
             }
         }
 
-        if (pick_data.pickNode() == nullptr && (snap & RenderSnap::SnapAny)) {
+        if (pick_data.pickNode() == nullptr && (snap & PickSnap::SnapAny)) {
             int target_x = center_x;
             int target_y = center_y;
 
@@ -985,7 +985,7 @@ bool GLSceneRender::dragGL(const Point2i& mouse_pos, int pixel, PickData& pick_d
     renderBackGround();
     m_gl_function->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    renderCondition(false, true, true, true, RenderSnap::SnapNone);
+    renderCondition(false, true, true, true, PickSnap::SnapNone);
     renderNode(m_scene_view->sceneGraph()->rootNode());
 
     /// ピクセルデータ読み取り
@@ -1212,7 +1212,7 @@ const GLSceneRender::Float3x3f& GLSceneRender::curNormalMatrix() const
     return m_stack_normal_matrix.back();
 }
 
-void GLSceneRender::renderCondition(bool transparent, bool pick_render, bool text_render, bool drag, RenderSnap snap)
+void GLSceneRender::renderCondition(bool transparent, bool pick_render, bool text_render, bool drag, PickSnap snap)
 {
     m_cond_transparent = transparent;
     m_cond_pick_render = pick_render;
@@ -1226,7 +1226,7 @@ bool GLSceneRender::renderScene()
     m_stack_transparent_objects.clear();
 
     /// 通常描画
-    renderCondition(false, false, false, false, RenderSnap::SnapNone);
+    renderCondition(false, false, false, false, PickSnap::SnapNone);
     renderNode(m_scene_view->sceneGraph()->rootNode());
 
     Node* temporary_root = m_scene_view->temporaryRootNode();
@@ -1238,7 +1238,7 @@ bool GLSceneRender::renderScene()
 
     /// 透明描画
     if (m_stack_transparent_objects.size() > 0) {
-        renderCondition(true, false, false, false, RenderSnap::SnapNone);
+        renderCondition(true, false, false, false, PickSnap::SnapNone);
 
         std::sort(m_stack_transparent_objects.begin(), m_stack_transparent_objects.end(),
                   [](const TransparentObject& a, const TransparentObject& b) { return a.m_depth > b.m_depth; });
@@ -1284,7 +1284,7 @@ bool GLSceneRender::renderScene()
     }
 
     /// テキスト描画
-    renderCondition(false, false, true, false, RenderSnap::SnapNone);
+    renderCondition(false, false, true, false, PickSnap::SnapNone);
     renderNode(m_scene_view->sceneGraph()->rootNode());
 
     if (!temporary_root->children().empty()) {
@@ -2045,7 +2045,7 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
 
     if (m_cond_pick_render) {
         /* /// 遅いので線分データ（グループのボックス判定）を通す
-        if (m_cond_snap & RenderSnap::SnapVertex) {
+        if (m_cond_snap & PickSnap::SnapVertex) {
             const Matrix4x4f& matrix = curPathMatrix();
 
             for (const auto& vertex : vertices) {
@@ -2071,7 +2071,7 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
             }
         }
         */
-        if (m_cond_snap & RenderSnap::SnapEdge || m_cond_snap & RenderSnap::SnapVertex) {
+        if (m_cond_snap & PickSnap::SnapEdge || m_cond_snap & PickSnap::SnapVertex) {
             const Matrix4x4f& matrix = curPathMatrix();
 
             /// 元々線分が多かったのでグループ分けしていたが、だいぶ減りはした（重複をすべて消した）。とりあえずこの仕組みは残しておく
@@ -2111,7 +2111,7 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
                         continue;
                     }
 
-                    if (m_cond_snap & RenderSnap::SnapVertex) {
+                    if (m_cond_snap & PickSnap::SnapVertex) {
                         if (m_scene_view->isPointInFrustum(seg_point_0, matrix)) {
                             int object_id = m_stack_pick_objects.size();
 
@@ -2435,7 +2435,7 @@ bool GLSceneRender::renderVoxelScalar(Node* node, VoxelScalar* voxel)
 bool GLSceneRender::renderDimension(Node* node, Dimension* dimension, bool multi_dimension, bool multi_dimension_name)
 {
     if (!m_cond_text_render && m_cond_pick_render) {
-        if (m_cond_snap & RenderSnap::SnapVertex) {
+        if (m_cond_snap & PickSnap::SnapVertex) {
             for (int ic = 0; ic < 2; ++ic) {
                 const auto& vertex = ic == 0 ? dimension->posStart() : dimension->posEnd();
 
@@ -2723,7 +2723,7 @@ bool GLSceneRender::renderDimension(Node* node, Dimension* dimension, bool multi
             m_gl_function->glDrawArrays(GL_LINES, 2, 2);
             m_cur_shader_program->setUniformValue("dashed_line", false);
 
-            if (!(m_cond_snap & RenderSnap::SnapVertex)) {
+            if (!(m_cond_snap & PickSnap::SnapVertex)) {
                 m_cur_shader_program->setUniformValue("point_display", true);
 
                 // 点のサイズを設定
@@ -2752,7 +2752,7 @@ bool GLSceneRender::renderMultiDimension(Node* node, MultiDimension* dimension)
 {
     /*
     if (m_cond_pick_render) {
-        if (m_cond_snap != RenderSnap::SnapNone) {
+        if (m_cond_snap != PickSnap::SnapNone) {
             return true;
         }
     }*/

@@ -101,7 +101,7 @@ protected:
     int dimensionStrSize() const;
     int autoDimensionStrSize() const;
 
-    RenderSnap      dimensionSnap() const;
+    PickSnap        dimensionSnap() const;
     Dimension::Type dimensionType() const;
 
     Dimension::TextAlign autoDimensionTextAlign(QComboBox* combobox = nullptr) const;

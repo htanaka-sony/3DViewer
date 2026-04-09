@@ -29,7 +29,7 @@ enum class AttributeType {
 /// Snap用の定義
 /// 　※ 暫定でここ
 /// 　組み合わせなのでビット演算可能にする
-enum RenderSnap {
+enum PickSnap {
     SnapNone   = 0x01,
     SnapAny    = 0x02,
     SnapVertex = 0x04,

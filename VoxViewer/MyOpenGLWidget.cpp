@@ -620,9 +620,9 @@ void MyOpenGLWidget::mouseReleaseEvent(QMouseEvent* event)
             QPoint             local_mouse_pos  = mapFromGlobal(global_mouse_pos) * devicePixelRatio();
             PickData           pick_data;
             std::vector<Node*> pick_nodes;
-            m_scene_render->pickGL(
-                Point2i(local_mouse_pos.x(), local_mouse_pos.y()), 5, pick_data,
-                (RenderSnap)(m_pick_mode ? (m_pick_snap | RenderSnap::SnapAny) : RenderSnap::SnapNone), &pick_nodes);
+            m_scene_render->pickGL(Point2i(local_mouse_pos.x(), local_mouse_pos.y()), 5, pick_data,
+                                   (PickSnap)(m_pick_mode ? (m_pick_snap | PickSnap::SnapAny) : PickSnap::SnapNone),
+                                   &pick_nodes);
             if (pick_data.pickNode() != nullptr) {
                 adjustPickData(pick_data, true, &pick_nodes);
 
@@ -649,7 +649,7 @@ void MyOpenGLWidget::mouseReleaseEvent(QMouseEvent* event)
                         PickData           pick_data_2;
                         std::vector<Node*> pick_nodes_2;
                         m_scene_render->pickGL(Point2i(local_mouse_pos.x(), local_mouse_pos.y()), 5, pick_data_2,
-                                               RenderSnap::SnapNone, &pick_nodes_2);
+                                               PickSnap::SnapNone, &pick_nodes_2);
                         m_scene_render->setPickVoxelScalarPriorityInvalid(true);
                         m_scene_render->setPickWireframeInvalid(false);
 
@@ -1231,7 +1231,7 @@ void MyOpenGLWidget::dimensionMouseMove()
         PickData           pick_data;
         std::vector<Node*> pick_nodes;
         m_scene_render->pickGL(Point2i(local_mouse_pos.x(), local_mouse_pos.y()), 5, pick_data,
-                               (RenderSnap)(m_pick_snap ? (m_pick_snap | RenderSnap::SnapAny) : RenderSnap::SnapNone),
+                               (PickSnap)(m_pick_snap ? (m_pick_snap | PickSnap::SnapAny) : PickSnap::SnapNone),
                                &pick_nodes);
         if (pick_data.pickNode() != nullptr) {
             auto pick_type = pick_data.type();
@@ -1246,7 +1246,7 @@ void MyOpenGLWidget::dimensionMouseMove()
                                                     {pick_objects[0].pickPoint(), pick_data.pickPoint()}, true);
             }
 
-            if (m_pick_snap != RenderSnap::SnapNone) {
+            if (m_pick_snap != PickSnap::SnapNone) {
                 if (pick_data.pickNode() != nullptr && pick_type != PickType::TypeNone) {
                     m_scene_render->setXORPointRender(pick_data.pickPoint());
                 }
@@ -1258,7 +1258,7 @@ void MyOpenGLWidget::dimensionMouseMove()
             update();
         }
     }
-    else if (m_pick_mode && m_pick_snap != RenderSnap::SnapNone) {
+    else if (m_pick_mode && m_pick_snap != PickSnap::SnapNone) {
         QPoint             global_mouse_pos = QCursor::pos();
         QPoint             local_mouse_pos  = mapFromGlobal(global_mouse_pos) * devicePixelRatio();
         PickData           pick_data;
@@ -1466,7 +1466,7 @@ bool MyOpenGLWidget::pickVoxelGL(const Point3f& obj_pos, Point3f& pick_pos)
     const auto         local_mouse_pos = m_scene_view->projectToScreen(obj_pos);
     PickData           pick_data;
     std::vector<Node*> target_nodes;
-    m_scene_render->pickGL(Point2i(local_mouse_pos.x(), local_mouse_pos.y()), 5, pick_data, RenderSnap::SnapNone,
+    m_scene_render->pickGL(Point2i(local_mouse_pos.x(), local_mouse_pos.y()), 5, pick_data, PickSnap::SnapNone,
                            &target_nodes, &obj_pos);
     m_scene_render->resetPickTargetFilter();
     if (pick_data.pickNode()) {
@@ -1784,7 +1784,7 @@ void MyOpenGLWidget::removeOpt3DNode()
     }
 }
 
-void MyOpenGLWidget::setPickMode(bool pick, RenderSnap snap)
+void MyOpenGLWidget::setPickMode(bool pick, PickSnap snap)
 {
     m_pick_mode = pick;
     m_pick_snap = snap;
@@ -1795,7 +1795,7 @@ void MyOpenGLWidget::setPickMode(bool pick, RenderSnap snap)
         setMouseTracking(false);
     }
 
-    if (snap == RenderSnap::SnapNone) {
+    if (snap == PickSnap::SnapNone) {
         m_scene_render->resetXORCurrent();
     }
 

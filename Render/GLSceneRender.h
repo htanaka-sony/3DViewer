@@ -46,9 +46,9 @@ public:
     void initializeGL(QOpenGLWidget* gl_widget, QOpenGLFunctions* function);
     void resizeGL(int w, int h);
     void paintGL(int area[4] = nullptr);
-    bool pickGL(const Point2i& mouse_pos, int pixel, PickData& pick_data, RenderSnap snap = RenderSnap::SnapNone,
+    bool pickGL(const Point2i& mouse_pos, int pixel, PickData& pick_data, PickSnap snap = PickSnap::SnapNone,
                 std::vector<Node*>* all_nodes = nullptr, const Point3f* obj_pos = nullptr);
-    bool pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pick_data, RenderSnap snap = RenderSnap::SnapNone,
+    bool pickGLFunc(const Point2i& mouse_pos, int pixel, PickData& pick_data, PickSnap snap = PickSnap::SnapNone,
                     std::vector<Node*>* all_nodes = nullptr, const Point3f* obj_pos = nullptr);
     bool dragGL(const Point2i& mouse_pos, int pixel, PickData& pick_data);
 
@@ -228,7 +228,7 @@ protected:
     const Float3x3f&  curNormalMatrix() const;
 
     /// Render
-    void renderCondition(bool transparent, bool pick_render, bool text_render, bool drag, RenderSnap snap);
+    void renderCondition(bool transparent, bool pick_render, bool text_render, bool drag, PickSnap snap);
     bool renderScene();
     bool renderNode(Node* node);
     bool renderVoxel(Node* node, Voxel* voxel);
@@ -271,7 +271,7 @@ protected:
     bool                 m_cond_pick_render = false;
     bool                 m_cond_text_render = false;
     bool                 m_cond_drag        = false;
-    RenderSnap           m_cond_snap        = RenderSnap::SnapNone;
+    PickSnap             m_cond_snap        = PickSnap::SnapNone;
     std::set<ObjectType> m_drag_filter;
     bool                 m_temporary_draw = false;
 

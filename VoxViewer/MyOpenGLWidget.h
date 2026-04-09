@@ -130,7 +130,7 @@ public:
 
     void setRotationCenter(const QPoint& local_mouse_pos);
 
-    void setPickMode(bool pick, RenderSnap snap);
+    void setPickMode(bool pick, PickSnap snap);
 
     void setPickColor(QColor color);
 
@@ -292,8 +292,8 @@ private:
     MouseMode m_mouse_mode         = Rotate;
     bool      m_mouse_zoom_reverse = false;
 
-    bool       m_pick_mode = false;
-    RenderSnap m_pick_snap = RenderSnap::SnapNone;
+    bool     m_pick_mode = false;
+    PickSnap m_pick_snap = PickSnap::SnapNone;
 
     GLSceneRender*    m_scene_render = nullptr;
     RefPtr<SceneView> m_scene_view;

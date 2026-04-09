@@ -1028,22 +1028,22 @@ int DimensionCtrl::autoDimensionStrSize() const
     return ui->spinBox_create_auto_dimension_size->value();
 }
 
-RenderSnap DimensionCtrl::dimensionSnap() const
+PickSnap DimensionCtrl::dimensionSnap() const
 {
     if (ui->checkBox_create_dimension_snap->isChecked()) {
         const auto& snap = ui->comboBox_ceate_dimension_snap->currentText();
         if (snap == "Vertex") {
-            return RenderSnap::SnapVertex;
+            return PickSnap::SnapVertex;
         }
         if (snap == "Edge") {
-            return RenderSnap::SnapEdge;
+            return PickSnap::SnapEdge;
         }
         if (snap == "Vertex+Edge") {
-            return RenderSnap::SnapVertexEdge;
+            return PickSnap::SnapVertexEdge;
         }
     }
 
-    return RenderSnap::SnapNone;
+    return PickSnap::SnapNone;
 }
 
 Dimension::Type DimensionCtrl::dimensionType() const
