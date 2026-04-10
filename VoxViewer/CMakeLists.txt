@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OPTIMIZE_DEPENDENCIES ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOUIC OFF) # OFFにしてsetup_uiで対応する（差分ビルドできないため）（階層分けたら差分ビルドできたが、AUTOUICが階層またがってエラーになるのでOFFにしてスクリプトで対応）
 set(CMAKE_AUTORCC ON)
 
 project(VoxViewer)
@@ -13,22 +13,22 @@ project(VoxViewer)
 add_library(${PROJECT_NAME} SHARED
     CommonSubClass.cpp
     CommonSubClass.h
-    CommonSubFunc.cpp
-    CommonSubFunc.h
-    CommonSubFunc.ui
+    ui_files/CommonSubFunc.cpp
+    ui_files/CommonSubFunc.h
+    ui_files/CommonSubFunc.ui
 
-    GeometryInputForm.cpp
-    GeometryInputForm.h
-    GeometryInputForm.ui
+    ui_files/GeometryInputForm.cpp
+    ui_files/GeometryInputForm.h
+    ui_files/GeometryInputForm.ui
     GeometrySubScene.cpp
     GeometrySubScene.h
 
-    LightSetting.ui
-    LightSettingDlg.cpp
-    LightSettingDlg.h
-    MainWindow3DViewer.cpp
-    MainWindow3DViewer.h
-    MainWindow3DViewer.ui
+    ui_files/LightSetting.ui
+    ui_files/LightSettingDlg.cpp
+    ui_files/LightSettingDlg.h
+    ui_files/MainWindow3DViewer.cpp
+    ui_files/MainWindow3DViewer.h
+    ui_files/MainWindow3DViewer.ui
 
     MyOpenGLWidget.cpp
     MyOpenGLWidget.h
@@ -37,9 +37,9 @@ add_library(${PROJECT_NAME} SHARED
     ReadVoxel.cpp
     ReadVoxel.h
     resources.qrc
-    Vox3DForm.cpp
-    Vox3DForm.h
-    Vox3DForm.ui
+    ui_files/Vox3DForm.cpp
+    ui_files/Vox3DForm.h
+    ui_files/Vox3DForm.ui
     Vox3DFormSub01.cpp
     Vox3DFormSub02readVoxMakeGL.cpp
     Vox3DFormSub03H.cpp
@@ -64,18 +64,22 @@ add_library(${PROJECT_NAME} SHARED
     ResultCtrl.cpp
     CsvUtil.cpp
     CsvUtil.h
-    SaveColorMap.ui
-    SaveColorMapDlg.h
-    SaveColorMapDlg.cpp
+    ui_files/SaveColorMap.ui
+    ui_files/SaveColorMapDlg.h
+    ui_files/SaveColorMapDlg.cpp
     ReadOp2.h
     ReadOp2.cpp
     ${LZ4_ROOT_DIR}/lz4.c
-    Op2ArraySetting.ui
-    Op2ArraySetting.h
-    Op2ArraySetting.cpp
+    ui_files/Op2ArraySetting.ui
+    ui_files/Op2ArraySetting.h
+    ui_files/Op2ArraySetting.cpp
     ResultStyleDefaultCombBox.h
-    OptPerformanceSetting.h OptPerformanceSetting.cpp OptPerformanceSetting.ui
-    ResultOutputDlg.h ResultOutputDlg.cpp ResultOutputDlg.ui
+    ui_files/OptPerformanceSetting.h
+    ui_files/OptPerformanceSetting.cpp
+    ui_files/OptPerformanceSetting.ui
+    ui_files/ResultOutputDlg.h
+    ui_files/ResultOutputDlg.cpp
+    ui_files/ResultOutputDlg.ui
     UtilityCtrl.h
     UtilityCtrl.cpp
     CustomTableWidget.h
@@ -83,9 +87,9 @@ add_library(${PROJECT_NAME} SHARED
     CustomCombo.h
     CustomSpin.h
     CustomDoubleSpin.h
-    VoxOutputDlg.ui
-    VoxOutputDlg.h
-    VoxOutputDlg.cpp
+    ui_files/VoxOutputDlg.ui
+    ui_files/VoxOutputDlg.h
+    ui_files/VoxOutputDlg.cpp
     OutputFileThread.h
     OutputFileThread.cpp
     FileExplorerDialog.h
@@ -94,6 +98,8 @@ add_library(${PROJECT_NAME} SHARED
     CustomLineEdit.cpp
     CustomTooltip.h
 )
+
+setup_ui(${PROJECT_NAME} ui_files)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     VOXVIEWER_LIBRARY

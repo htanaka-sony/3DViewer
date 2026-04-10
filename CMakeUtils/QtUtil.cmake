@@ -186,3 +186,41 @@ function(copyQtPDB target output_dir)
         )
     endforeach()
 endfunction()
+
+# UIヘッダ生成
+function(generate_ui_headers ui_dir out_var)
+    file(GLOB UI_FILES "${ui_dir}/*.ui")
+    set(GENERATED_UI_HDRS)
+    foreach(_ui ${UI_FILES})
+        get_filename_component(_name "${_ui}" NAME_WE)
+        set(_h "ui_${_name}.h")
+        set(_h_abs "${CMAKE_CURRENT_BINARY_DIR}/${_h}")
+        add_custom_command(
+            OUTPUT ${_h_abs}
+            COMMAND ${Qt6_DIR}/../../../bin/uic ARGS ${_ui} -o ${_h_abs}
+            DEPENDS ${_ui}
+            COMMENT "Autogenerate ${_h} from ${_ui}"
+            VERBATIM
+        )
+        list(APPEND GENERATED_UI_HDRS ${_h_abs})
+    endforeach()
+    set(${out_var} "${GENERATED_UI_HDRS}" PARENT_SCOPE)
+endfunction()
+
+function(setup_ui target ui_dir)
+    # UIヘッダ生成
+    generate_ui_headers(${ui_dir} GENERATED_UI_HEADERS)
+    add_custom_target(generate_ui_headers_${target} DEPENDS ${GENERATED_UI_HEADERS})
+
+    # ソースに自動生成ヘッダを追加
+    target_sources(${target} PRIVATE ${GENERATED_UI_HEADERS})
+
+    # インクルードパス追加
+    target_include_directories(${target} PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${ui_dir}
+    )
+
+    # 依存関係追加
+    add_dependencies(${target} generate_ui_headers_${target})
+endfunction()
