@@ -133,6 +133,9 @@ public:
 
     void setCreateSectionLine(bool create);
 
+    /// BOX生成(TEST): 別要素に移動すべき
+    void createBoxShape();
+
 public:
     virtual bool isVoxel() const override { return true; }
 

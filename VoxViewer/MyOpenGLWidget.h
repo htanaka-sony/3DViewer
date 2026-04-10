@@ -41,6 +41,8 @@ public:
 
     SceneView* sceneView() { return m_scene_view.ptr(); }
 
+    Vox3DForm* form() { return m_3DForm; }
+
     /// Init
     void initGLWidget(Vox3DForm* form);
 

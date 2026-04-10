@@ -34,6 +34,42 @@ void Voxel::setCreateSectionLine(bool create)
     renderMesh()->setCreateSectionLine(create);
 }
 
+void Voxel::createBoxShape()
+{
+    auto mesh = renderMesh();
+
+    Point3f min_pos = Point3f(m_org.x(), m_org.y(), m_org.z());
+    Point3f max_pos =
+        min_pos + Point3f(m_delta.x() * m_number.x(), m_delta.y() * m_number.y(), m_delta.z() * m_number.z());
+
+    /// Z-
+    mesh->appendQuad(min_pos, Point3f(min_pos.x(), max_pos.y(), min_pos.z()),
+                     Point3f(max_pos.x(), max_pos.y(), min_pos.z()), Point3f(max_pos.x(), min_pos.y(), min_pos.z()),
+                     /*Point3f(0, 0, -1),*/ 0);
+
+    /// Z+
+    mesh->appendQuad(Point3f(min_pos.x(), min_pos.y(), max_pos.z()), Point3f(max_pos.x(), min_pos.y(), max_pos.z()),
+                     max_pos, Point3f(min_pos.x(), max_pos.y(), max_pos.z()), /*Point3f(0, 0, 1),*/ 0);
+
+    /// X-
+    mesh->appendQuad(min_pos, Point3f(min_pos.x(), min_pos.y(), max_pos.z()),
+                     Point3f(min_pos.x(), max_pos.y(), max_pos.z()), Point3f(min_pos.x(), max_pos.y(), min_pos.z()),
+                     /*Point3f(-1, 0, 0),*/ 0);
+
+    /// X+
+    mesh->appendQuad(Point3f(max_pos.x(), min_pos.y(), min_pos.z()), Point3f(max_pos.x(), max_pos.y(), min_pos.z()),
+                     max_pos, Point3f(max_pos.x(), min_pos.y(), max_pos.z()), /*Point3f(1, 0, 0),*/ 0);
+
+    /// Y-
+    mesh->appendQuad(min_pos, Point3f(max_pos.x(), min_pos.y(), min_pos.z()),
+                     Point3f(max_pos.x(), min_pos.y(), max_pos.z()), Point3f(min_pos.x(), min_pos.y(), max_pos.z()),
+                     /*Point3f(0, -1, 0),*/ 0);
+
+    /// Y+
+    mesh->appendQuad(Point3f(min_pos.x(), max_pos.y(), min_pos.z()), Point3f(min_pos.x(), max_pos.y(), max_pos.z()),
+                     max_pos, Point3f(max_pos.x(), max_pos.y(), min_pos.z()), /*Point3f(0, 1, 0),*/ 0);
+}
+
 Voxel::Voxel(const double x, const double y, const double z, const double dx, const double dy, const double dz,
              const int nx, const int ny, const int nz)
 {

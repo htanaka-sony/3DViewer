@@ -54,9 +54,9 @@
 // #include <QTextCodec>
 // For Japanese
 #ifdef EYERIS_3D_VISUALIZATION
-#define TR(s) (s)
+    #define TR(s) (s)
 #else
-#define TR(s) (QString::fromLocal8Bit(s))
+    #define TR(s) (QString::fromLocal8Bit(s))
 #endif
 #include <QFile>        //kuroda
 #include <QFileInfo>    //kuroda
@@ -115,7 +115,7 @@ public:
     explicit Vox3DForm(QWidget* parent = nullptr);
     ~Vox3DForm();
 
-    QOpenGLWidget *openGLWidget();
+    QOpenGLWidget* openGLWidget();
 
     bool eventFilter(QObject* obj, QEvent* event) override;
     void installEventFiltersForAllUiMembers(QObject* uiObject);
@@ -480,6 +480,9 @@ public:
 public:
     QList<QDockWidget*>& dockWidgets() { return m_dock_widgets; }
     QSet<QDockWidget*>   tabActiveWidgets();
+
+    /// TEST
+    QDockWidget* showAndFloatingClippingDockWidget();
 
 public:
     static inline const QString m_mouse_rotate           = QString("Rotate");

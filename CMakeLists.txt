@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.19)
 #set(APP_BUILD_TYPE "WithPDB")
 
 # Version指定
-project(3DViewerBuild VERSION 1.0.0)
+project(3DViewer VERSION 1.0.0)
 
 # std::execution::par使っているのでMSVCに限定する（MinGW対応していない）
 if(NOT MSVC)
@@ -75,8 +75,6 @@ set(CMAKE_CXX_STANDARD 20)
 include(CMakeUtils/UtilityFunction.cmake)
 include(CMakeUtils/QtUtil.cmake)
 include(CMakeUtils/3DViewerUtil.cmake)
-
-project(3DViewer)
 
 add_subdirectory(Core)
 add_subdirectory(Render)
