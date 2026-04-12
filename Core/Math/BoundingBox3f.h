@@ -239,6 +239,15 @@ public:
         return true;
     }
 
+    inline bool isOverlapExceptPlane(const BoundingBox3f& bbox) const
+    {
+        if (m_max.m_x <= bbox.m_min.m_x || m_min.m_x >= bbox.m_max.m_x) return false;
+        if (m_max.m_y <= bbox.m_min.m_y || m_min.m_y >= bbox.m_max.m_y) return false;
+        if (m_max.m_z <= bbox.m_min.m_z || m_min.m_z >= bbox.m_max.m_z) return false;
+
+        return true;
+    }
+
     inline bool isOverlap(const BoundingBox3f& bbox, float expandRange) const
     {
         if (m_max.m_x + expandRange < bbox.m_min.m_x || m_min.m_x > bbox.m_max.m_x + expandRange) return false;

@@ -72,6 +72,12 @@ Node* Node::addChild()
     return node.ptr();
 }
 
+void Node::popChild()
+{
+    m_children.pop_back();
+    markBoxDirty();
+}
+
 void Node::removeChild(Node* node)
 {
     auto it = std::find(m_children.begin(), m_children.end(), node);

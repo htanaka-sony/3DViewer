@@ -49,6 +49,8 @@ public:
     void  appendChild(Node* child);
     Node* addChild();
 
+    void popChild();
+
     void removeChild(Node* node);
     void removeChild(const std::set<Node*>& nodes);
     void removeAllChild(bool recur = false);
