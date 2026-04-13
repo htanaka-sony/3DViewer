@@ -8,6 +8,7 @@
 #include "Scene/SceneGraph.h"
 #include "Scene/Voxel.h"
 #include "Scene/VoxelScalar.h"
+#include "Scene/Mesh.h"
 
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLFunctions>
@@ -1250,6 +1251,9 @@ bool GLSceneRender::renderScene()
                 case ObjectType::Voxel: {
                     renderVoxel(node, (Voxel*)object);
                 } break;
+                case ObjectType::Mesh: {
+                    renderVoxel(node, (Mesh*)object);
+                } break;
                 default:
                     break;
             }
@@ -1322,6 +1326,9 @@ bool GLSceneRender::renderNode(Node* node)
             case ObjectType::Voxel: {
                 renderVoxel(node, (Voxel*)object);
             } break;
+            case ObjectType::Mesh: {
+                renderVoxel(node, (Mesh*)object);
+            } break;
             case ObjectType::VoxelScalar: {
                 renderVoxelScalar(node, (VoxelScalar*)object);
             } break;
@@ -1367,6 +1374,7 @@ void GLSceneRender::createRenderData(Node* node)
     if (Object* object = node->object()) {
         switch (object->type()) {
             case ObjectType::Voxel:
+            case ObjectType::Mesh:
             case ObjectType::VoxelScalar: {
                 createRenderVoxelData((Voxel*)object);
             } break;

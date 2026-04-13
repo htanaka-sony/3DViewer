@@ -20,6 +20,7 @@ namespace Core {
 class Node;
 class Voxel;
 class VoxelScalar;
+class Mesh;
 class Dimension;
 class MultiDimension;
 }    // namespace Core
