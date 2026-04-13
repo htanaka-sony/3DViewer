@@ -11,6 +11,7 @@ enum class ObjectType {
     Shape          = 100,    /// Shape（使うことはない/基底クラス）
     Voxel          = 150,    /// ボクセル
     VoxelScalar    = 160,    /// 解析結果のボクセル
+    Mesh           = 170,    /// メッシュ形状
     Annotation     = 200,    /// Annotation（使うことはない/基底クラス）
     Dimension      = 250,    /// 寸法
     MultiDimension = 251,    /// 自動寸法（マルチ寸法）
