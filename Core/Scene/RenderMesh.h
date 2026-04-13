@@ -16,6 +16,9 @@ protected:
     RenderMesh(const RenderMesh& other);
 
 public:
+    void createBoxShape(const BoundingBox3f& box);
+
+public:
     virtual void          updateBoundingBox();
     virtual BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
                                                bool including_text) const;
