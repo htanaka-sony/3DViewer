@@ -105,19 +105,19 @@ public:
     void createDisplayDataXYOnly();    /// 2次元
     void clearDisplayData();
 
-    void  setProjectionOpt(Node* project_node) { m_projection_voxel_scalar = project_node; }
-    Node* projectionOpt();
+    // void  setProjectionOpt(Node* project_node) { c = project_node; }
+    // Node* projectionOpt();
 
     unsigned char** data() const { return m_data; }
 
     void compressData();
     void decompressData(bool delete_decompress_data = true);
 
-    bool isDrawShading() const { return m_draw_shading; }
-    bool isDrawWireframe() const { return m_draw_wireframe; }
+    // bool isDrawShading() const { return m_draw_shading; }
+    // bool isDrawWireframe() const { return m_draw_wireframe; }
 
-    void setDrawShading(bool shading) { m_draw_shading = shading; }
-    void setDrawWireframe(bool wireframe) { m_draw_wireframe = wireframe; }
+    // void setDrawShading(bool shading) { m_draw_shading = shading; }
+    // void setDrawWireframe(bool wireframe) { m_draw_wireframe = wireframe; }
 
     struct ReadPerformInfo {
         Point3i           m_number;    /// 個数(元）
@@ -156,10 +156,10 @@ protected:
     Point3d m_delta;     /// セルサイズ
     Point3i m_number;    /// 個数
 
-    bool m_draw_shading   = true;
-    bool m_draw_wireframe = false;
+    // bool m_draw_shading   = true;
+    // bool m_draw_wireframe = false;
 
-    WeakRefPtr<Node> m_projection_voxel_scalar;
+    // WeakRefPtr<Node> m_projection_voxel_scalar;
 
     /// 高速・省メモリ化
     ReadPerformInfo* m_read_perform_info = nullptr;

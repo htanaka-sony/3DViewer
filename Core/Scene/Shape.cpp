@@ -6,12 +6,12 @@ DEFINE_META_OBJECT(Shape)
 
 Shape::Shape()
 {
-    m_color[3] = 1.0f;
+    // m_color[3] = 1.0f;
 }
 
 Shape::Shape(const Shape& other)
 {
-    m_color      = other.m_color;
+    // m_color      = other.m_color;
     m_renderable = other.m_renderable;
 }
 

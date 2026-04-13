@@ -144,6 +144,23 @@ public:
     void               setUserAttributeString(const std::wstring& key, const std::wstring& value);
     const std::wstring userAttributeString(const std::wstring& key);
 
+    void           setColor(const Point4f& color);
+    void           setColor(const Point3f& color);
+    void           setColor(float r, float g, float b);
+    const Point4f& color() const;
+    void           setTransparent(float transparent);
+    float          transparent() const;
+
+    void  setProjectionNode(Node* node);
+    Node* projectionNode();
+
+    bool isDrawShading() const;
+    bool isDrawWireframe() const;
+    void setDrawShading(bool shading);
+    void setDrawWireframe(bool wireframe);
+
+    void setDrawPriority(int priority);
+
     /// インスタンスコピー生成
     RefPtr<Node> copyInstance();
 

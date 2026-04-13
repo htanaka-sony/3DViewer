@@ -54,6 +54,7 @@ public:
 
     virtual bool isShape() const { return false; }
     virtual bool isVoxel() const { return false; }
+    virtual bool isAnnotation() const { return false; }
 
     virtual void deleteNode(Node* node) {}    /// Nodeが消えるとき
 };

@@ -18,6 +18,7 @@ QT_END_NAMESPACE
 
 namespace Core {
 class Node;
+class Mesh;
 class Voxel;
 class VoxelScalar;
 class Dimension;
@@ -211,11 +212,13 @@ protected:
         Object*    m_object;
         Matrix4x4f m_path_matrix;
         float      m_depth;
-        TransparentObject(Node* node, Object* object, const Matrix4x4f& path_matrix, float depth)
+        int        m_priority;
+        TransparentObject(Node* node, Object* object, const Matrix4x4f& path_matrix, float depth, int priority)
             : m_node(node)
             , m_object(object)
             , m_path_matrix(path_matrix)
             , m_depth(depth)
+            , m_priority(priority)
         {
         }
     };
@@ -231,11 +234,14 @@ protected:
     void renderCondition(bool transparent, bool pick_render, bool text_render, bool drag, PickSnap snap);
     bool renderScene();
     bool renderNode(Node* node);
+    bool renderMesh(Node* node, Mesh* mesh);
     bool renderVoxel(Node* node, Voxel* voxel);
     bool renderVoxelScalar(Node* node, VoxelScalar* voxel);
     bool renderDimension(Node* node, Dimension* dimension, bool multi_dimension = false,
                          bool multi_dimension_name = false);
     bool renderMultiDimension(Node* node, MultiDimension* dimension);
+
+    bool renderRenderableMesh(Node* node, RenderEditableMesh* mesh, Object* object);
 
     void drawCoordinateSystem();
 

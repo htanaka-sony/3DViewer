@@ -1318,6 +1318,7 @@ void Voxel::createDisplayDataXYOnly()
     }
 }
 
+/*
 Node* Voxel::projectionOpt()
 {
     /// 暫定 - 表示フラグはGUIと連動させる
@@ -1328,6 +1329,7 @@ Node* Voxel::projectionOpt()
         return (Node*)nullptr;
     }
 }
+*/
 
 void Voxel::compressData()
 {

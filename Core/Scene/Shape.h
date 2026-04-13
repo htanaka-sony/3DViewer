@@ -24,26 +24,26 @@ public:
     virtual void resetBoxDirty();
     virtual bool isBoxDirty() const;
 
-    virtual void           setColor(const Point3f& color) { setColor(color[0], color[1], color[2]); }
-    virtual void           setColor(const Point4f& color) { m_color = color; }
-    virtual const Point4f& color() const { return m_color; }
+    // virtual void           setColor(const Point3f& color) { setColor(color[0], color[1], color[2]); }
+    // virtual void           setColor(const Point4f& color) { m_color = color; }
+    // virtual const Point4f& color() const { return m_color; }
 
-    virtual void setColor(float r, float g, float b)
-    {
-        m_color.setX(r);
-        m_color.setY(g);
-        m_color.setZ(b);
-    }
+    // virtual void setColor(float r, float g, float b)
+    //{
+    //     m_color.setX(r);
+    //     m_color.setY(g);
+    //     m_color.setZ(b);
+    // }
 
-    virtual void  setTransparent(float transparent) { m_color.setW(transparent); }
-    virtual float transparent() const { return m_color.w(); }
+    // virtual void  setTransparent(float transparent) { m_color.setW(transparent); }
+    // virtual float transparent() const { return m_color.w(); }
 
     virtual bool isShape() const { return true; }
 
     RenderableObject* renderableObject() { return m_renderable.ptr(); }
 
 protected:
-    Point4f m_color;
+    // Point4f m_color;
 
     RefPtr<RenderableObject> m_renderable;
     // BoundingBox3f m_bbox;

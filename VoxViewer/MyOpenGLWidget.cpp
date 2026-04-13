@@ -246,10 +246,7 @@ void MyOpenGLWidget::transparentMateial(QList<int>& mateial_ids, bool update_vie
 {
     for (auto& [id, node] : m_material_node_map) {
         if (node.isAlive()) {
-            auto shape = node->shape();
-            if (shape) {
-                shape->setTransparent(1.0f);
-            }
+            node->setTransparent(1.0f);
         }
     }
     for (auto& id : mateial_ids) {
@@ -257,10 +254,7 @@ void MyOpenGLWidget::transparentMateial(QList<int>& mateial_ids, bool update_vie
         if (find_id != m_material_node_map.end()) {
             auto& node = find_id->second;
             if (node.isAlive()) {
-                auto shape = node->shape();
-                if (shape) {
-                    shape->setTransparent(0.4f);
-                }
+                node->setTransparent(0.4f);
             }
         }
     }
@@ -275,11 +269,8 @@ void MyOpenGLWidget::drawMode(const std::map<int, std::pair<bool, bool>>& draw_m
         if (node.isAlive()) {
             auto itr = draw_mode_list.find(id);
             if (itr != draw_mode_list.end()) {
-                auto voxel = node->object<Voxel>();
-                if (voxel) {
-                    voxel->setDrawShading(itr->second.first);
-                    voxel->setDrawWireframe(itr->second.second);
-                }
+                node->setDrawShading(itr->second.first);
+                node->setDrawWireframe(itr->second.second);
             }
         }
     }
@@ -294,13 +285,10 @@ void MyOpenGLWidget::setDrawMode(int material_id, bool shading, bool wireframe, 
     if (find_id != m_material_node_map.end()) {
         auto& node = find_id->second;
         if (node.isAlive()) {
-            auto voxel = node->object<Voxel>();
-            if (voxel) {
-                voxel->setDrawShading(shading);
-                voxel->setDrawWireframe(wireframe);
-                if (update_view) {
-                    update();
-                }
+            node->setDrawShading(shading);
+            node->setDrawWireframe(wireframe);
+            if (update_view) {
+                update();
             }
         }
     }
@@ -308,15 +296,9 @@ void MyOpenGLWidget::setDrawMode(int material_id, bool shading, bool wireframe, 
 
 void MyOpenGLWidget::optMateial(QList<int>& mateial_ids, bool update_view)
 {
-    /// 前回
-    bool pre_has_proj_opt = hasProjectOpt(false);
-
     for (auto& [id, node] : m_material_node_map) {
         if (node.isAlive()) {
-            auto shape = node->shape();
-            if (shape && shape->isVoxel()) {
-                ((Voxel*)shape)->setProjectionOpt(nullptr);
-            }
+            node->setProjectionNode(nullptr);
         }
     }
 
@@ -326,10 +308,7 @@ void MyOpenGLWidget::optMateial(QList<int>& mateial_ids, bool update_view)
             if (find_id != m_material_node_map.end()) {
                 auto& node = find_id->second;
                 if (node.isAlive()) {
-                    auto shape = node->shape();
-                    if (shape && shape->isVoxel()) {
-                        ((Voxel*)shape)->setProjectionOpt(m_opt_3d_node.ptr());
-                    }
+                    node->setProjectionNode(m_opt_3d_node.ptr());
                 }
             }
         }
@@ -357,10 +336,7 @@ void MyOpenGLWidget::setColor(int material_id, const Point3f& color, bool update
     if (find_id != m_material_node_map.end()) {
         auto& node = find_id->second;
         if (node.isAlive()) {
-            auto shape = node->shape();
-            if (shape) {
-                shape->setColor(color);
-            }
+            node->setColor(color);
         }
     }
 
@@ -381,7 +357,7 @@ bool MyOpenGLWidget::hasProjectOpt(bool display) const
 
             auto shape = node->shape();
             if (shape && shape->isVoxel()) {
-                if (((Voxel*)shape)->projectionOpt()) {
+                if (((Node*)node.ptr())->projectionNode()) {
                     return true;
                 }
             }
@@ -678,7 +654,7 @@ void MyOpenGLWidget::mouseReleaseEvent(QMouseEvent* event)
 
                                     VoxelScalar* voxel_scalar = (VoxelScalar*)pick_node_object;
                                     if (!voxel_scalar->scalarData()) {
-                                        auto project_node = ((VoxelScalar*)pick_node_object)->projectionOpt();
+                                        auto project_node = pick_data_2.pickNode()->projectionNode();
                                         if (project_node && project_node->object<VoxelScalar>()) {
                                             voxel_scalar = project_node->object<VoxelScalar>();
                                         }
@@ -698,8 +674,9 @@ void MyOpenGLWidget::mouseReleaseEvent(QMouseEvent* event)
                             auto pick_node_object = pick_data.pickNodeObject();    /// 最初のピック使う
                             if (pick_node_object && pick_node_object->type() == ObjectType::Voxel) {
                                 if (m_3DForm->resultCtl()->isShowInformationOnClick()) {
-                                    Voxel* voxel    = (Voxel*)pick_node_object;
-                                    Node*  opt_node = voxel->projectionOpt();
+                                    Voxel* voxel = (Voxel*)pick_node_object;
+                                    Node*  opt_node =
+                                        pick_data.pickNode() ? pick_data.pickNode()->projectionNode() : nullptr;
                                     if (opt_node && opt_node->object<VoxelScalar>()) {
                                         auto adj_norm = -pick_data.pickNorm();
                                         if (adj_norm.length2() == 0.0f) {
@@ -753,7 +730,7 @@ void MyOpenGLWidget::mouseReleaseEvent(QMouseEvent* event)
 
                             VoxelScalar* voxel_scalar = (VoxelScalar*)pick_node_object;
                             if (!voxel_scalar->scalarData()) {
-                                auto project_node = ((VoxelScalar*)pick_node_object)->projectionOpt();
+                                auto project_node = pick_data.pickNode()->projectionNode();
                                 if (project_node && project_node->object<VoxelScalar>()) {
                                     voxel_scalar = project_node->object<VoxelScalar>();
                                 }

@@ -92,6 +92,9 @@ RenderEditableMesh::~RenderEditableMesh() {}
 RenderEditableMesh::RenderEditableMesh(const RenderEditableMesh& other)
 {
     setRenderableObject(other.renderableObject());
+    if (other.m_projection_node.isAlive()) {
+        m_projection_node = other.m_projection_node;
+    }
 }
 
 void RenderEditableMesh::updateBoundingBox()
@@ -183,6 +186,17 @@ void RenderEditableMesh::clearDisplayData()
     markSegmentsGroupDirty();
     markRenderDirty();
     markBoxDirty();
+}
+
+Node* RenderEditableMesh::projectionNode()
+{
+    /// 暫定 - 表示フラグはGUIと連動させる
+    if (m_projection_node.isAlive() && m_projection_node->isShow()) {
+        return m_projection_node.ptr();
+    }
+    else {
+        return (Node*)nullptr;
+    }
 }
 
 CORE_NAMESPACE_END

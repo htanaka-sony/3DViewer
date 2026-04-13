@@ -9,6 +9,7 @@ CORE_NAMESPACE_BEGIN
 enum class ObjectType {
     TypeNone       = 0,      /// 未設定
     Shape          = 100,    /// Shape（使うことはない/基底クラス）
+    Mesh           = 110,    /// メッシュ（シンプルメッシュ・法線なし）
     Voxel          = 150,    /// ボクセル
     VoxelScalar    = 160,    /// 解析結果のボクセル
     Annotation     = 200,    /// Annotation（使うことはない/基底クラス）

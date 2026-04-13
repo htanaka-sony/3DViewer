@@ -2679,6 +2679,7 @@ bool ResultCtrl::createVoxelRangeShape(const std::vector<Node*>&                
         }
         RefPtr<Node> new_child = new_node->addChild();
         new_child->setObject(region_param.m_create_voxel.ptr());
+        new_child->setProjectionNode(region_param.m_voxel_node);
         ui->obj3dViewer->createRenderData(new_child->renderable());
     }
 
@@ -3045,8 +3046,8 @@ void CreateRangeVoxelScalar::run()
                 return;
             }
 
-            voxel_scalar_child->setProjectionOpt(voxel_scale);
-            // voxel_scalar_child->setVboUse(false);
+            // voxel_scalar_child->setProjectionNode(voxel_scale);
+            //  voxel_scalar_child->setVboUse(false);
             region_param.m_create_voxel = voxel_scalar_child;
 
             mutex.lock();

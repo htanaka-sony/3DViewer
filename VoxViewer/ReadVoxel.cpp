@@ -198,7 +198,7 @@ bool ReadVoxel::read(const QString& path, MyOpenGLWidget* gl_view, Vox3DForm* fo
                     color = form->func_GL_defineColor_nameToRGBvec(m_fdtd_mname_to_cname.value(material_name));
                 }
             }
-            voxel->setColor(Point4f(color[0], color[1], color[2], 1.0f));
+            new_node->setColor(Point4f(color[0], color[1], color[2], 1.0f));
             ++id_count;
 
             material_id_node_list.emplace_back(id, new_node);

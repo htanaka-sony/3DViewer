@@ -66,8 +66,8 @@ public:                                                                         
 
 class CORE_EXPORT Renderable : public Referenced {
 protected:
-    Renderable()                        = default;
-    Renderable(const Renderable& other) = default;
+    Renderable();
+    Renderable(const Renderable& other);
     ~Renderable() { deleteRenderData(false); }
 
 public:
@@ -89,6 +89,20 @@ public:
     void markBoxDirty() { m_box_dirty = true; }
     void resetBoxDirty() { m_box_dirty = false; }
     bool isBoxDirty() const { return m_box_dirty; }
+
+    virtual void           setColor(const Point3f& color) { setColor(color[0], color[1], color[2]); }
+    virtual void           setColor(const Point4f& color) { m_color = color; }
+    virtual const Point4f& color() const { return m_color; }
+
+    virtual void setColor(float r, float g, float b)
+    {
+        m_color.setX(r);
+        m_color.setY(g);
+        m_color.setZ(b);
+    }
+
+    virtual void  setTransparent(float transparent) { m_color.setW(transparent); }
+    virtual float transparent() const { return m_color.w(); }
 
     virtual void deleteNode(Node* node) {}    /// Nodeが消えるとき
 
@@ -119,6 +133,8 @@ protected:
     /// Render Data (Render DLLで生成データ保持・削除用)
     void*                            m_render_data         = nullptr;
     std::function<void(void*, bool)> m_render_data_deleter = nullptr;
+
+    Point4f m_color;
 
     BoundingBox3f m_bbox;
     bool          m_box_dirty    = true;
@@ -172,6 +188,18 @@ public:
         }
         m_eneble_edit_display = enable;
     }
+
+    virtual void  setProjectionNode(Node* project_node) {}
+    virtual Node* projectionNode() { return nullptr; }
+
+    virtual bool isDrawShading() const { return true; }
+    virtual bool isDrawWireframe() const { return true; }
+
+    virtual void setDrawShading(bool shading) {}
+    virtual void setDrawWireframe(bool wireframe) {}
+
+    virtual int  drawPriority() const { return 0; }
+    virtual void setDrawPriority(int priority) {}
 
     const RenderableObject* renderableObject() const { return m_renderable_object.ptr(); }
     RenderableObject*       renderableObject() { return m_renderable_object.ptr(); }

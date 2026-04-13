@@ -1,4 +1,5 @@
 #include "Node.h"
+#include "Annotation.h"
 #include "Shape.h"
 
 CORE_NAMESPACE_BEGIN
@@ -562,6 +563,135 @@ const std::wstring Node::userAttributeString(const std::wstring& key)
     }
 
     return L"";
+}
+
+void Node::setColor(const Point4f& color)
+{
+    if (m_renderable != nullptr) {
+        m_renderable->setColor(color);
+    }
+    else if (m_object != nullptr) {
+        if (m_object->isAnnotation()) {
+            ((Annotation*)m_object.ptr())->setColor(color);
+        }
+    }
+}
+
+void Node::setColor(const Point3f& color)
+{
+    if (m_renderable != nullptr) {
+        m_renderable->setColor(color);
+    }
+    else if (m_object != nullptr) {
+        if (m_object->isAnnotation()) {
+            ((Annotation*)m_object.ptr())->setColor(color);
+        }
+    }
+}
+
+void Node::setColor(float r, float g, float b)
+{
+    if (m_renderable != nullptr) {
+        m_renderable->setColor(r, g, b);
+    }
+    else if (m_object != nullptr) {
+        if (m_object->isAnnotation()) {
+            ((Annotation*)m_object.ptr())->setColor(r, g, b);
+        }
+    }
+}
+
+const Point4f& Node::color() const
+{
+    if (m_renderable != nullptr) {
+        return m_renderable->color();
+    }
+    else if (m_object != nullptr) {
+        if (m_object->isAnnotation()) {
+            return ((Annotation*)m_object.ptr())->color();
+        }
+    }
+
+    static Point4f dummy_color(0, 0, 0, 1);
+    return dummy_color;
+}
+
+void Node::setTransparent(float transparent)
+{
+    if (m_renderable != nullptr) {
+        m_renderable->setTransparent(transparent);
+    }
+    else if (m_object != nullptr) {
+        if (m_object->isAnnotation()) {
+            ((Annotation*)m_object.ptr())->setTransparent(transparent);
+        }
+    }
+}
+
+float Node::transparent() const
+{
+    if (m_renderable != nullptr) {
+        return m_renderable->transparent();
+    }
+    else if (m_object != nullptr) {
+        if (m_object->isAnnotation()) {
+            return ((Annotation*)m_object.ptr())->transparent();
+        }
+    }
+
+    return 1.0f;
+}
+
+void Node::setProjectionNode(Node* node)
+{
+    if (m_renderable != nullptr) {
+        m_renderable->setProjectionNode(node);
+    }
+}
+
+Node* Node::projectionNode()
+{
+    if (m_renderable != nullptr) {
+        return m_renderable->projectionNode();
+    }
+    return nullptr;
+}
+
+bool Node::isDrawShading() const
+{
+    if (m_renderable != nullptr) {
+        return m_renderable->isDrawShading();
+    }
+    return false;
+}
+
+bool Node::isDrawWireframe() const
+{
+    if (m_renderable != nullptr) {
+        return m_renderable->isDrawWireframe();
+    }
+    return false;
+}
+
+void Node::setDrawShading(bool shading)
+{
+    if (m_renderable != nullptr) {
+        m_renderable->setDrawShading(shading);
+    }
+}
+
+void Node::setDrawWireframe(bool wireframe)
+{
+    if (m_renderable != nullptr) {
+        m_renderable->setDrawWireframe(wireframe);
+    }
+}
+
+void Node::setDrawPriority(int priority)
+{
+    if (m_renderable != nullptr) {
+        m_renderable->setDrawPriority(priority);
+    }
 }
 
 RefPtr<Node> Node::copyInstance()

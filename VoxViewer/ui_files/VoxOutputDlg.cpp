@@ -1703,10 +1703,10 @@ void VoxOutputThread::collectTarget(Node* node)
     if (object) {
         switch (object->type()) {
             case ObjectType::Voxel:
-                target.m_shading     = ((Voxel*)object)->isDrawShading();
-                target.m_wireframe   = ((Voxel*)object)->isDrawWireframe();
-                target.m_transparent = ((Voxel*)object)->transparent();
-                target.m_proj_opt    = ((Voxel*)object)->projectionOpt();
+                target.m_shading     = node->isDrawShading();
+                target.m_wireframe   = node->isDrawWireframe();
+                target.m_transparent = node->transparent();
+                target.m_proj_opt    = node->projectionNode();
                 m_voxel_list.emplace_back(target);
                 return;
             case ObjectType::VoxelScalar:
@@ -1767,9 +1767,8 @@ void VoxOutputThread::outputPicture()
             collectTarget(root_node);
 
             for (auto& vox : m_voxel_list) {
-                Voxel* voxel = vox.m_node->object<Voxel>();
-                voxel->setDrawShading(m_input.m_vox_current_shading);
-                voxel->setDrawWireframe(m_input.m_vox_current_wireframe);
+                vox.m_node->setDrawShading(m_input.m_vox_current_shading);
+                vox.m_node->setDrawWireframe(m_input.m_vox_current_wireframe);
             }
 
             ++output_group_count;
@@ -1884,12 +1883,11 @@ void VoxOutputThread::outputPictureOneGroup(const QString& label)
     const auto& opt_planes = m_input.m_target_surface;
 
     for (auto& target : m_voxel_list) {
-        Voxel* voxel = target.m_node->object<Voxel>();
         if (!current_show) {
-            voxel->setDrawShading(true);
-            voxel->setDrawWireframe(true);
-            voxel->setTransparent(1.0f);
-            voxel->setProjectionOpt(nullptr);
+            target.m_node->setDrawShading(true);
+            target.m_node->setDrawWireframe(true);
+            target.m_node->setTransparent(1.0f);
+            target.m_node->setProjectionNode(nullptr);
             target.m_node->show();
         }
         // voxel->setTransparent(1.0f);
@@ -2217,17 +2215,16 @@ void VoxOutputThread::outputPictureOneGroup(const QString& label)
     m_gl_widget->setVoxelWireframeColorShape(wireframe_color_shape, false);
 
     for (auto& target : m_voxel_list) {
-        Voxel* voxel = target.m_node->object<Voxel>();
         if (!current_show) {
-            voxel->setDrawShading(target.m_shading);
-            voxel->setDrawWireframe(target.m_wireframe);
+            target.m_node->setDrawShading(target.m_shading);
+            target.m_node->setDrawWireframe(target.m_wireframe);
             if (target.m_show)
                 target.m_node->show();
             else
                 target.m_node->hide();
         }
-        voxel->setTransparent(target.m_transparent);
-        voxel->setProjectionOpt(target.m_proj_opt);
+        target.m_node->setTransparent(target.m_transparent);
+        target.m_node->setProjectionNode(target.m_proj_opt);
     }
     for (auto& target : m_opt2d_list) {
         if (target.m_show)

@@ -16,4 +16,14 @@ RefPtr<RenderableNode> RenderableNode::createRenderableNode(RenderableObject* re
     return nullptr;
 }
 
+Renderable::Renderable()
+{
+    m_color[3] = 1.0f;
+}
+
+Renderable::Renderable(const Renderable& other)
+{
+    m_color = other.m_color;
+}
+
 CORE_NAMESPACE_END

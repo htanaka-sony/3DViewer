@@ -2,6 +2,7 @@
 #define RENDERMESH_H
 
 #include "Renderable.h"
+#include "Scene/Node.h"
 
 CORE_NAMESPACE_BEGIN
 
@@ -129,11 +130,24 @@ public:
 
     virtual void clearDisplayData() override;
 
+    void  setProjectionNode(Node* project_node) override { m_projection_node = project_node; }
+    Node* projectionNode() override;
+
+    bool isDrawShading() const override { return m_draw_shading; }
+    bool isDrawWireframe() const override { return m_draw_wireframe; }
+
+    void setDrawShading(bool shading) override { m_draw_shading = shading; }
+    void setDrawWireframe(bool wireframe) override { m_draw_wireframe = wireframe; }
+
+    /// Todo: Edit固定(Editした状態で、それをオリジナルとみなす)をここでやるか、RenderableNodeでやる
     RenderMesh*       originalMesh() { return (RenderMesh*)renderableObject(); }
     const RenderMesh* originalMesh() const { return (const RenderMesh*)renderableObject(); }
 
     bool isVboUse() { return m_vbo_use; }
     void setVboUse(bool use) { m_vbo_use = use; }
+
+    int  drawPriority() const override { return m_draw_priority; }
+    void setDrawPriority(int priority) override { m_draw_priority = priority; }
 
 protected:
     /// TODO: 暫定: 描画高速化のため線分をグループで分ける
@@ -154,10 +168,16 @@ protected:
     std::vector<unsigned int> m_edit_indices_2;
     std::vector<unsigned int> m_edit_segments_indices_2;
 
+    WeakRefPtr<Node> m_projection_node;
+
     /// フラグ
     bool m_eneble_edit_display  = false;
     bool m_edit_buffer_2        = false;
     bool m_segments_group_dirty = true;
+    bool m_draw_shading         = true;
+    bool m_draw_wireframe       = true;
+
+    int m_draw_priority = 0;    /// 描画優先調整
 
     bool m_vbo_use = true;
 };
