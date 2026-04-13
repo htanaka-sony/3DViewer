@@ -1718,8 +1718,11 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
 
                 m_cur_shader_program->setUniformValue("transparency", 1.0f);
                 m_cur_shader_program->setUniformValue("disable_light", true);
+                /// 深度範囲を圧縮してワイヤーフレームが必ず面メッシュより手前に描画されるようにする
+                glDepthRange(0.0, 0.9999);
                 m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT,
                                               (void*)(indices.size() * sizeof(GLuint)));
+                glDepthRange(0.0, 1.0);
                 m_cur_shader_program->setUniformValue("disable_light", false);
 
                 if (m_line_smooth) {
@@ -1914,7 +1917,10 @@ bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
 
                 m_cur_shader_program->setUniformValue("transparency", 1.0f);
                 m_cur_shader_program->setUniformValue("disable_light", true);
+                /// 深度範囲を圧縮してワイヤーフレームが必ず面メッシュより手前に描画されるようにする
+                glDepthRange(0.0, 0.9999);
                 m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT, seg_indices.data());
+                glDepthRange(0.0, 1.0);
                 m_cur_shader_program->setUniformValue("disable_light", false);
 
                 m_cur_shader_program->disableAttributeArray(0);
