@@ -2493,8 +2493,18 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
             }
         }
 
+        /// 暫定 - 色が黒で、シェーディングとワイヤー同時、透明でないとき、ワイヤー描画しない
+        bool no_draw_wire = false;
+        if (!m_cond_transparent) {
+            const Point4f& color = mesh->color();
+            if (voxel_draw_wireframe && voxel_draw_shading
+                && (color[0] == 0.0f && color[1] == 0.0f && color[2] == 0.0f)) {
+                no_draw_wire = true;
+            }
+        }
+
         /// Wireframe表示のとき かつ ピック描画ではないとき
-        if (voxel_draw_wireframe && !m_cond_pick_render) {
+        if (voxel_draw_wireframe && !m_cond_pick_render && !no_draw_wire) {
             const auto& seg_indices =
                 mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
             if (seg_indices.size() > 0) {
@@ -2700,8 +2710,18 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
             }
         }
 
+        /// 暫定 - 色が黒で、シェーディングとワイヤー同時、透明でないとき、ワイヤー描画しない
+        bool no_draw_wire = false;
+        if (!m_cond_transparent) {
+            const Point4f& color = mesh->color();
+            if (voxel_draw_wireframe && voxel_draw_shading
+                && (color[0] == 0.0f && color[1] == 0.0f && color[2] == 0.0f)) {
+                no_draw_wire = true;
+            }
+        }
+
         /// Wireframe表示のとき かつ ピック描画ではないとき
-        if (voxel_draw_wireframe && !m_cond_pick_render) {
+        if (voxel_draw_wireframe && !m_cond_pick_render && !no_draw_wire) {
             /// Edge表示
             const auto& seg_indices =
                 mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
