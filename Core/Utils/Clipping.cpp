@@ -769,7 +769,7 @@ bool Clipping::clipPolygonWithPlane(const std::vector<Point3f>&      in_vertices
     ///   ※全体で整合とれないとエッジループが正しく取得できないので注意
     ///
     /// 上下方向あるので、足してm_zero_epsとする（その後のエッジ接続判定とかがm_zero_epsなのでそこで収まるようにする）
-    float zero_eps   = m_valid_eps / 2.0;
+    float zero_eps   = m_valid_eps / 2.0 * 0.01;    /// 暫定 - ここの調整が必要
     float zero_eps_2 = zero_eps * zero_eps;
 
     const auto& plane            = plane_info.m_plane;
@@ -1174,12 +1174,10 @@ void Clipping::createContour(const std::vector<EdgeInfo>& edge_list, std::vector
     float zero_eps_2 = zero_eps * zero_eps;
     float valid_eps  = m_valid_eps;
 
-    SearchXYData<const EdgeInfo*, float> search_edge, search_reverse_edge;
+    SearchXYData<const EdgeInfo*, float> search_edge;
     search_edge.setEPS(zero_eps);
-    search_reverse_edge.setEPS(zero_eps);
     for (auto& edge : edge_list) {
         search_edge.appendData(edge.m_start.x(), edge.m_start.y(), &edge);
-        search_reverse_edge.appendData(edge.m_end.x(), edge.m_end.y(), &edge);
     }
     SearchXYXYCount<float> edge_count;
     edge_count.setEPS(zero_eps);
