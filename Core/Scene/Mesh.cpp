@@ -22,4 +22,16 @@ void Mesh::createBoxShape(const BoundingBox3f& box)
     mesh->createBoxShape(box);
 }
 
+void Mesh::createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ, float tol)
+{
+    RenderMesh* mesh = (RenderMesh*)m_renderable.ptr();
+    mesh->createBoxRound(box, radius, ratioX, ratioY, ratioZ, tol);
+}
+
+void Mesh::createBoxTapper(const BoundingBox3f& box, float taperDistance)
+{
+    RenderMesh* mesh = (RenderMesh*)m_renderable.ptr();
+    mesh->createBoxTapper(box, taperDistance);
+}
+
 CORE_NAMESPACE_END

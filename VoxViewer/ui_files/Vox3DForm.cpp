@@ -987,10 +987,20 @@ QSet<QDockWidget*> Vox3DForm::tabActiveWidgets()
     return current_docks;
 }
 
-QDockWidget* Vox3DForm::showAndFloatingClippingDockWidget()
+QDockWidget* Vox3DForm::clippingDockWidget()
 {
     for (auto& dock_widget : m_dock_widgets) {
         if (dock_widget->widget() == ui->ClippingTab) {
+            return dock_widget;
+        }
+    }
+    return nullptr;
+}
+
+QDockWidget* Vox3DForm::dimensionDockWidget()
+{
+    for (auto& dock_widget : m_dock_widgets) {
+        if (dock_widget->widget() == ui->DimensionTab) {
             return dock_widget;
         }
     }

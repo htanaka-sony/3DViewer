@@ -482,7 +482,8 @@ public:
     QSet<QDockWidget*>   tabActiveWidgets();
 
     /// TEST
-    QDockWidget* showAndFloatingClippingDockWidget();
+    QDockWidget* clippingDockWidget();
+    QDockWidget* dimensionDockWidget();
 
 public:
     static inline const QString m_mouse_rotate           = QString("Rotate");
