@@ -264,12 +264,22 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
 
     // ---- ワイヤーフレーム (m_segments_indices) ----
     if (m_create_section_line) {
+        /// ワイヤーフレーム専用の頂点に使うゼロ法線
+        const Point3f kZeroNorm(0.0f, 0.0f, 0.0f);
+
+        /// 追加される頂点数・インデックス数を事前に計算して予約
+        /// Part1: 24本の直線 = 48頂点
+        /// Part2: 24弧 × segs = 48*segs 頂点
+        /// Part3: 8コーナー × wire_segs × 2方向 × segs = 32*wire_segs*segs 頂点
+        const int wire_extra_verts = 48 + 48 * segs + 32 * wire_segs * segs;
+        m_vertices.reserve(m_vertices.size() + wire_extra_verts);
+        m_segments_indices.reserve(m_segments_indices.size() + wire_extra_verts);
+
         /// 2頂点を追加して1線分ペアを m_segments_indices に登録するヘルパー
-        /// ワイヤーフレーム専用頂点なので法線は (0,0,0) でよい
         auto addLine = [&](const Point3f& a, const Point3f& b) {
             const unsigned int i = (unsigned int)m_vertices.size();
-            m_vertices.emplace_back(a, Point3f(0.0f, 0.0f, 0.0f));
-            m_vertices.emplace_back(b, Point3f(0.0f, 0.0f, 0.0f));
+            m_vertices.emplace_back(a, kZeroNorm);
+            m_vertices.emplace_back(b, kZeroNorm);
             m_segments_indices.push_back(i);
             m_segments_indices.push_back(i + 1);
         };
