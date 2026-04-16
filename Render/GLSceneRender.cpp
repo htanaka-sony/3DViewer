@@ -6,6 +6,7 @@
 #include "Scene/Dimension.h"
 #include "Scene/Mesh.h"
 #include "Scene/MultiDimension.h"
+#include "Scene/NormalMesh.h"
 #include "Scene/RenderMesh.h"
 #include "Scene/RenderNormalMesh.h"
 #include "Scene/SceneGraph.h"
@@ -1277,6 +1278,9 @@ bool GLSceneRender::renderScene()
                 case ObjectType::Mesh: {
                     renderMesh(node, (Mesh*)object);
                 } break;
+                case ObjectType::NormalMesh: {
+                    renderNormalMesh(node, (NormalMesh*)object);
+                } break;
                 case ObjectType::Voxel: {
                     renderVoxel(node, (Voxel*)object);
                 } break;
@@ -1351,6 +1355,9 @@ bool GLSceneRender::renderNode(Node* node)
         switch (object->type()) {
             case ObjectType::Mesh: {
                 renderMesh(node, (Mesh*)object);
+            } break;
+            case ObjectType::NormalMesh: {
+                renderNormalMesh(node, (NormalMesh*)object);
             } break;
             case ObjectType::Voxel: {
                 renderVoxel(node, (Voxel*)object);
@@ -1730,6 +1737,12 @@ bool GLSceneRender::renderMesh(Node* node, Mesh* mesh)
 {
     RenderEditableMesh* rmesh = (RenderEditableMesh*)node->renderable();
     return renderRenderableMesh(node, rmesh, mesh);
+}
+
+bool GLSceneRender::renderNormalMesh(Node* node, NormalMesh* mesh)
+{
+    RenderEditableNormalMesh* rmesh = (RenderEditableNormalMesh*)node->renderable();
+    return renderRenderableNormalMesh(node, rmesh, mesh);
 }
 
 bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)

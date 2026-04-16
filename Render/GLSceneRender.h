@@ -19,6 +19,7 @@ QT_END_NAMESPACE
 namespace Core {
 class Node;
 class Mesh;
+class NormalMesh;
 class Voxel;
 class VoxelScalar;
 class Dimension;
@@ -237,6 +238,7 @@ protected:
     bool renderScene();
     bool renderNode(Node* node);
     bool renderMesh(Node* node, Mesh* mesh);
+    bool renderNormalMesh(Node* node, NormalMesh* mesh);
     bool renderVoxel(Node* node, Voxel* voxel);
     bool renderVoxelScalar(Node* node, VoxelScalar* voxel);
     bool renderDimension(Node* node, Dimension* dimension, bool multi_dimension = false,

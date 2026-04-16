@@ -10,6 +10,7 @@ enum class ObjectType {
     TypeNone       = 0,      /// 未設定
     Shape          = 100,    /// Shape（使うことはない/基底クラス）
     Mesh           = 110,    /// メッシュ（シンプルメッシュ・法線なし）
+    NormalMesh     = 111,    /// メッシュ（シンプルメッシュ・法線あり）
     Voxel          = 150,    /// ボクセル
     VoxelScalar    = 160,    /// 解析結果のボクセル
     Annotation     = 200,    /// Annotation（使うことはない/基底クラス）
@@ -18,9 +19,11 @@ enum class ObjectType {
 };
 
 enum class RenderableType {
-    TypeNone = 0,    /// 未設定
-    RenderMesh,
-    RenderEditableMesh,
+    TypeNone                 = 0,    /// 未設定
+    RenderMesh               = 100,
+    RenderEditableMesh       = 101,
+    RenderNormalMesh         = 110,
+    RenderEditableNormalMesh = 111,
 };
 
 enum class AttributeType {
