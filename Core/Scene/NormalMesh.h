@@ -12,7 +12,8 @@ protected:
     NormalMesh(const NormalMesh& other);
 
 public:
-    void createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ, float tol);
+    void createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ, float tol,
+                        int wire_segs = 1);
 };
 
 CORE_NAMESPACE_END

@@ -23,7 +23,7 @@ RenderNormalMesh::RenderNormalMesh(const RenderNormalMesh& other)
 }
 
 void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ,
-                                      float tol)
+                                      float tol, int wire_segs)
 {
     m_vertices.clear();
     m_indices.clear();
@@ -255,6 +255,153 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
                         else {
                             addQuadN(spt(ui, vi), snrm(ui, vi), spt(ui + 1, vi), snrm(ui + 1, vi),
                                      spt(ui + 1, vi + 1), snrm(ui + 1, vi + 1), spt(ui, vi + 1), snrm(ui, vi + 1));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- ワイヤーフレーム (m_segments_indices) ----
+    if (m_create_section_line) {
+        /// 2頂点を追加して1線分ペアを m_segments_indices に登録するヘルパー
+        /// ワイヤーフレーム専用頂点なので法線は (0,0,0) でよい
+        auto addLine = [&](const Point3f& a, const Point3f& b) {
+            const unsigned int i = (unsigned int)m_vertices.size();
+            m_vertices.emplace_back(a, Point3f(0.0f, 0.0f, 0.0f));
+            m_vertices.emplace_back(b, Point3f(0.0f, 0.0f, 0.0f));
+            m_segments_indices.push_back(i);
+            m_segments_indices.push_back(i + 1);
+        };
+
+        /// 弧を segs ステップで折れ線として追加するヘルパー
+        auto addArcXY = [&](float cx, float cy, float z, float dx, float dy) {
+            for (int k = 0; k < segs; k++) {
+                const float t0 = (float)k * (float)M_PI_2 / segs;
+                const float t1 = (float)(k + 1) * (float)M_PI_2 / segs;
+                addLine({cx + dx * rx * std::cos(t0), cy + dy * ry * std::sin(t0), z},
+                        {cx + dx * rx * std::cos(t1), cy + dy * ry * std::sin(t1), z});
+            }
+        };
+        auto addArcXZ = [&](float cx, float y, float cz, float dx, float dz) {
+            for (int k = 0; k < segs; k++) {
+                const float t0 = (float)k * (float)M_PI_2 / segs;
+                const float t1 = (float)(k + 1) * (float)M_PI_2 / segs;
+                addLine({cx + dx * rx * std::cos(t0), y, cz + dz * rz * std::sin(t0)},
+                        {cx + dx * rx * std::cos(t1), y, cz + dz * rz * std::sin(t1)});
+            }
+        };
+        auto addArcYZ = [&](float x, float cy, float cz, float dy, float dz) {
+            for (int k = 0; k < segs; k++) {
+                const float t0 = (float)k * (float)M_PI_2 / segs;
+                const float t1 = (float)(k + 1) * (float)M_PI_2 / segs;
+                addLine({x, cy + dy * ry * std::cos(t0), cz + dz * rz * std::sin(t0)},
+                        {x, cy + dy * ry * std::cos(t1), cz + dz * rz * std::sin(t1)});
+            }
+        };
+
+        // ---- Part 1: 平面フェースの境界直線 (各フェース4辺 × 6面 = 24本) ----
+        /// Z- 面 (z = z0)
+        addLine({x0 + rx, y0 + ry, z0}, {x0 + W - rx, y0 + ry, z0});
+        addLine({x0 + rx, y0 + H - ry, z0}, {x0 + W - rx, y0 + H - ry, z0});
+        addLine({x0 + rx, y0 + ry, z0}, {x0 + rx, y0 + H - ry, z0});
+        addLine({x0 + W - rx, y0 + ry, z0}, {x0 + W - rx, y0 + H - ry, z0});
+        /// Z+ 面 (z = z0+D)
+        addLine({x0 + rx, y0 + ry, z0 + D}, {x0 + W - rx, y0 + ry, z0 + D});
+        addLine({x0 + rx, y0 + H - ry, z0 + D}, {x0 + W - rx, y0 + H - ry, z0 + D});
+        addLine({x0 + rx, y0 + ry, z0 + D}, {x0 + rx, y0 + H - ry, z0 + D});
+        addLine({x0 + W - rx, y0 + ry, z0 + D}, {x0 + W - rx, y0 + H - ry, z0 + D});
+        /// X- 面 (x = x0)
+        addLine({x0, y0 + ry, z0 + rz}, {x0, y0 + H - ry, z0 + rz});
+        addLine({x0, y0 + ry, z0 + D - rz}, {x0, y0 + H - ry, z0 + D - rz});
+        addLine({x0, y0 + ry, z0 + rz}, {x0, y0 + ry, z0 + D - rz});
+        addLine({x0, y0 + H - ry, z0 + rz}, {x0, y0 + H - ry, z0 + D - rz});
+        /// X+ 面 (x = x0+W)
+        addLine({x0 + W, y0 + ry, z0 + rz}, {x0 + W, y0 + H - ry, z0 + rz});
+        addLine({x0 + W, y0 + ry, z0 + D - rz}, {x0 + W, y0 + H - ry, z0 + D - rz});
+        addLine({x0 + W, y0 + ry, z0 + rz}, {x0 + W, y0 + ry, z0 + D - rz});
+        addLine({x0 + W, y0 + H - ry, z0 + rz}, {x0 + W, y0 + H - ry, z0 + D - rz});
+        /// Y- 面 (y = y0)
+        addLine({x0 + rx, y0, z0 + rz}, {x0 + W - rx, y0, z0 + rz});
+        addLine({x0 + rx, y0, z0 + D - rz}, {x0 + W - rx, y0, z0 + D - rz});
+        addLine({x0 + rx, y0, z0 + rz}, {x0 + rx, y0, z0 + D - rz});
+        addLine({x0 + W - rx, y0, z0 + rz}, {x0 + W - rx, y0, z0 + D - rz});
+        /// Y+ 面 (y = y0+H)
+        addLine({x0 + rx, y0 + H, z0 + rz}, {x0 + W - rx, y0 + H, z0 + rz});
+        addLine({x0 + rx, y0 + H, z0 + D - rz}, {x0 + W - rx, y0 + H, z0 + D - rz});
+        addLine({x0 + rx, y0 + H, z0 + rz}, {x0 + rx, y0 + H, z0 + D - rz});
+        addLine({x0 + W - rx, y0 + H, z0 + rz}, {x0 + W - rx, y0 + H, z0 + D - rz});
+
+        // ---- Part 2: コーナーパッチ↔辺ストリップ境界の弧 ----
+        /// XY 平面弧: z=z0+rz および z=z0+D-rz (Z平行ストリップとコーナーの境界)
+        for (int sx = 0; sx < 2; sx++) {
+            for (int sy = 0; sy < 2; sy++) {
+                const float cx = x0 + (sx ? W - rx : rx);
+                const float cy = y0 + (sy ? H - ry : ry);
+                const float dx = sx ? +1.0f : -1.0f;
+                const float dy = sy ? +1.0f : -1.0f;
+                addArcXY(cx, cy, z0 + rz, dx, dy);
+                addArcXY(cx, cy, z0 + D - rz, dx, dy);
+            }
+        }
+        /// XZ 平面弧: y=y0+ry および y=y0+H-ry (Y平行ストリップとコーナーの境界)
+        for (int sx = 0; sx < 2; sx++) {
+            for (int sz = 0; sz < 2; sz++) {
+                const float cx = x0 + (sx ? W - rx : rx);
+                const float cz = z0 + (sz ? D - rz : rz);
+                const float dx = sx ? +1.0f : -1.0f;
+                const float dz = sz ? +1.0f : -1.0f;
+                addArcXZ(cx, y0 + ry, cz, dx, dz);
+                addArcXZ(cx, y0 + H - ry, cz, dx, dz);
+            }
+        }
+        /// YZ 平面弧: x=x0+rx および x=x0+W-rx (X平行ストリップとコーナーの境界)
+        for (int sy = 0; sy < 2; sy++) {
+            for (int sz = 0; sz < 2; sz++) {
+                const float cy = y0 + (sy ? H - ry : ry);
+                const float cz = z0 + (sz ? D - rz : rz);
+                const float dy = sy ? +1.0f : -1.0f;
+                const float dz = sz ? +1.0f : -1.0f;
+                addArcYZ(x0 + rx, cy, cz, dy, dz);
+                addArcYZ(x0 + W - rx, cy, cz, dy, dz);
+            }
+        }
+
+        // ---- Part 3: コーナーパッチの緯度経度線 (wire_segs 本の中間線) ----
+        /// 緯度線 (一定 u): v 方向に弧を描く "平行圏"
+        /// 経度線 (一定 v): u 方向に弧を描く "子午線"
+        if (wire_segs > 0) {
+            for (int sx = 0; sx < 2; sx++) {
+                for (int sy = 0; sy < 2; sy++) {
+                    for (int sz = 0; sz < 2; sz++) {
+                        const float cx = x0 + (sx ? W - rx : rx);
+                        const float cy = y0 + (sy ? H - ry : ry);
+                        const float cz = z0 + (sz ? D - rz : rz);
+                        const float dx = sx ? +1.0f : -1.0f;
+                        const float dy = sy ? +1.0f : -1.0f;
+                        const float dz = sz ? +1.0f : -1.0f;
+                        auto spt = [&](float u, float v) -> Point3f {
+                            return {cx + dx * rx * std::sin(u) * std::cos(v),
+                                    cy + dy * ry * std::sin(u) * std::sin(v),
+                                    cz + dz * rz * std::cos(u)};
+                        };
+                        /// 緯度線: 固定 u で v を [0, π/2] に沿って描く
+                        for (int i = 1; i <= wire_segs; i++) {
+                            const float u = (float)i * (float)M_PI_2 / (wire_segs + 1);
+                            for (int k = 0; k < segs; k++) {
+                                const float v0 = (float)k * (float)M_PI_2 / segs;
+                                const float v1 = (float)(k + 1) * (float)M_PI_2 / segs;
+                                addLine(spt(u, v0), spt(u, v1));
+                            }
+                        }
+                        /// 経度線: 固定 v で u を [0, π/2] に沿って描く
+                        for (int j = 1; j <= wire_segs; j++) {
+                            const float v = (float)j * (float)M_PI_2 / (wire_segs + 1);
+                            for (int k = 0; k < segs; k++) {
+                                const float u0 = (float)k * (float)M_PI_2 / segs;
+                                const float u1 = (float)(k + 1) * (float)M_PI_2 / segs;
+                                addLine(spt(u0, v), spt(u1, v));
+                            }
                         }
                     }
                 }

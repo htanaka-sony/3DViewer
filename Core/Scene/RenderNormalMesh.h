@@ -19,7 +19,8 @@ protected:
 
 public:
     void createBoxShape(const BoundingBox3f& box);
-    void createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ, float tol);
+    void createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ, float tol,
+                        int wire_segs = 1);
     void createBoxTapper(const BoundingBox3f& box, float taperDistance);
 
 public:
