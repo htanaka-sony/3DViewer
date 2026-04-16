@@ -263,154 +263,121 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     }
 
     // ---- ワイヤーフレーム (m_segments_indices) ----
+    // 頂点は上記で生成済みのものをそのままインデックスで参照する。新頂点は追加しない。
     if (m_create_section_line) {
-        /// ワイヤーフレーム専用の頂点に使うゼロ法線
-        const Point3f kZeroNorm(0.0f, 0.0f, 0.0f);
-
-        /// 追加される頂点数・インデックス数を事前に計算して予約
-        /// Part1: 24本の直線 = 48頂点
-        /// Part2: 24弧 × segs = 48*segs 頂点
-        /// Part3: 8コーナー × wire_segs × 2方向 × segs = 32*wire_segs*segs 頂点
-        const int wire_extra_verts = 48 + 48 * segs + 32 * wire_segs * segs;
-        m_vertices.reserve(m_vertices.size() + wire_extra_verts);
-        m_segments_indices.reserve(m_segments_indices.size() + wire_extra_verts);
-
-        /// 2頂点を追加して1線分ペアを m_segments_indices に登録するヘルパー
-        auto addLine = [&](const Point3f& a, const Point3f& b) {
-            const unsigned int i = (unsigned int)m_vertices.size();
-            m_vertices.emplace_back(a, kZeroNorm);
-            m_vertices.emplace_back(b, kZeroNorm);
-            m_segments_indices.push_back(i);
-            m_segments_indices.push_back(i + 1);
+        /// 線分1本分のインデックスペアを追加するヘルパー
+        auto addSeg = [&](unsigned int a, unsigned int b) {
+            m_segments_indices.push_back(a);
+            m_segments_indices.push_back(b);
         };
 
-        /// 弧を segs ステップで折れ線として追加するヘルパー
-        auto addArcXY = [&](float cx, float cy, float z, float dx, float dy) {
-            for (int k = 0; k < segs; k++) {
-                const float t0 = (float)k * (float)M_PI_2 / segs;
-                const float t1 = (float)(k + 1) * (float)M_PI_2 / segs;
-                addLine({cx + dx * rx * std::cos(t0), cy + dy * ry * std::sin(t0), z},
-                        {cx + dx * rx * std::cos(t1), cy + dy * ry * std::sin(t1), z});
-            }
-        };
-        auto addArcXZ = [&](float cx, float y, float cz, float dx, float dz) {
-            for (int k = 0; k < segs; k++) {
-                const float t0 = (float)k * (float)M_PI_2 / segs;
-                const float t1 = (float)(k + 1) * (float)M_PI_2 / segs;
-                addLine({cx + dx * rx * std::cos(t0), y, cz + dz * rz * std::sin(t0)},
-                        {cx + dx * rx * std::cos(t1), y, cz + dz * rz * std::sin(t1)});
-            }
-        };
-        auto addArcYZ = [&](float x, float cy, float cz, float dy, float dz) {
-            for (int k = 0; k < segs; k++) {
-                const float t0 = (float)k * (float)M_PI_2 / segs;
-                const float t1 = (float)(k + 1) * (float)M_PI_2 / segs;
-                addLine({x, cy + dy * ry * std::cos(t0), cz + dz * rz * std::sin(t0)},
-                        {x, cy + dy * ry * std::cos(t1), cz + dz * rz * std::sin(t1)});
-            }
-        };
+        /// m_segments_indices の容量を事前確保
+        /// Part1: 24線分; Part2: 24弧×segs線分; Part3: 8コーナー×wire_segs×2方向×segs線分
+        m_segments_indices.reserve(m_segments_indices.size()
+                                   + 2 * (24 + 24 * segs + 16 * wire_segs * segs));
 
         // ---- Part 1: 平面フェースの境界直線 (各フェース4辺 × 6面 = 24本) ----
-        /// Z- 面 (z = z0)
-        addLine({x0 + rx, y0 + ry, z0}, {x0 + W - rx, y0 + ry, z0});
-        addLine({x0 + rx, y0 + H - ry, z0}, {x0 + W - rx, y0 + H - ry, z0});
-        addLine({x0 + rx, y0 + ry, z0}, {x0 + rx, y0 + H - ry, z0});
-        addLine({x0 + W - rx, y0 + ry, z0}, {x0 + W - rx, y0 + H - ry, z0});
-        /// Z+ 面 (z = z0+D)
-        addLine({x0 + rx, y0 + ry, z0 + D}, {x0 + W - rx, y0 + ry, z0 + D});
-        addLine({x0 + rx, y0 + H - ry, z0 + D}, {x0 + W - rx, y0 + H - ry, z0 + D});
-        addLine({x0 + rx, y0 + ry, z0 + D}, {x0 + rx, y0 + H - ry, z0 + D});
-        addLine({x0 + W - rx, y0 + ry, z0 + D}, {x0 + W - rx, y0 + H - ry, z0 + D});
-        /// X- 面 (x = x0)
-        addLine({x0, y0 + ry, z0 + rz}, {x0, y0 + H - ry, z0 + rz});
-        addLine({x0, y0 + ry, z0 + D - rz}, {x0, y0 + H - ry, z0 + D - rz});
-        addLine({x0, y0 + ry, z0 + rz}, {x0, y0 + ry, z0 + D - rz});
-        addLine({x0, y0 + H - ry, z0 + rz}, {x0, y0 + H - ry, z0 + D - rz});
-        /// X+ 面 (x = x0+W)
-        addLine({x0 + W, y0 + ry, z0 + rz}, {x0 + W, y0 + H - ry, z0 + rz});
-        addLine({x0 + W, y0 + ry, z0 + D - rz}, {x0 + W, y0 + H - ry, z0 + D - rz});
-        addLine({x0 + W, y0 + ry, z0 + rz}, {x0 + W, y0 + ry, z0 + D - rz});
-        addLine({x0 + W, y0 + H - ry, z0 + rz}, {x0 + W, y0 + H - ry, z0 + D - rz});
-        /// Y- 面 (y = y0)
-        addLine({x0 + rx, y0, z0 + rz}, {x0 + W - rx, y0, z0 + rz});
-        addLine({x0 + rx, y0, z0 + D - rz}, {x0 + W - rx, y0, z0 + D - rz});
-        addLine({x0 + rx, y0, z0 + rz}, {x0 + rx, y0, z0 + D - rz});
-        addLine({x0 + W - rx, y0, z0 + rz}, {x0 + W - rx, y0, z0 + D - rz});
-        /// Y+ 面 (y = y0+H)
-        addLine({x0 + rx, y0 + H, z0 + rz}, {x0 + W - rx, y0 + H, z0 + rz});
-        addLine({x0 + rx, y0 + H, z0 + D - rz}, {x0 + W - rx, y0 + H, z0 + D - rz});
-        addLine({x0 + rx, y0 + H, z0 + rz}, {x0 + rx, y0 + H, z0 + D - rz});
-        addLine({x0 + W - rx, y0 + H, z0 + rz}, {x0 + W - rx, y0 + H, z0 + D - rz});
+        // 頂点インデックス 0-23 は6面分の平面フェース頂点
+        // 各フェースはaddQuadFlatで追加された4頂点: v[0],v[1],v[2],v[3] (連続インデックス)
+        //
+        // Z- 面 (base=0): v0={x0+rx,y0+ry,z0}, v1={x0+rx,y0+H-ry,z0},
+        //                  v2={x0+W-rx,y0+H-ry,z0}, v3={x0+W-rx,y0+ry,z0}
+        addSeg(0, 1); addSeg(1, 2); addSeg(2, 3); addSeg(3, 0);
+        // Z+ 面 (base=4): v0={x0+rx,y0+ry,z0+D}, v1={x0+W-rx,y0+ry,z0+D},
+        //                  v2={x0+W-rx,y0+H-ry,z0+D}, v3={x0+rx,y0+H-ry,z0+D}
+        addSeg(4, 5); addSeg(5, 6); addSeg(6, 7); addSeg(7, 4);
+        // X- 面 (base=8): v0={x0,y0+ry,z0+rz}, v1={x0,y0+ry,z0+D-rz},
+        //                  v2={x0,y0+H-ry,z0+D-rz}, v3={x0,y0+H-ry,z0+rz}
+        addSeg(8, 9); addSeg(9, 10); addSeg(10, 11); addSeg(11, 8);
+        // X+ 面 (base=12): v0={x0+W,y0+ry,z0+rz}, v1={x0+W,y0+H-ry,z0+rz},
+        //                   v2={x0+W,y0+H-ry,z0+D-rz}, v3={x0+W,y0+ry,z0+D-rz}
+        addSeg(12, 13); addSeg(13, 14); addSeg(14, 15); addSeg(15, 12);
+        // Y- 面 (base=16): v0={x0+rx,y0,z0+rz}, v1={x0+W-rx,y0,z0+rz},
+        //                   v2={x0+W-rx,y0,z0+D-rz}, v3={x0+rx,y0,z0+D-rz}
+        addSeg(16, 17); addSeg(17, 18); addSeg(18, 19); addSeg(19, 16);
+        // Y+ 面 (base=20): v0={x0+rx,y0+H,z0+rz}, v1={x0+rx,y0+H,z0+D-rz},
+        //                   v2={x0+W-rx,y0+H,z0+D-rz}, v3={x0+W-rx,y0+H,z0+rz}
+        addSeg(20, 21); addSeg(21, 22); addSeg(22, 23); addSeg(23, 20);
 
-        // ---- Part 2: コーナーパッチ↔辺ストリップ境界の弧 ----
-        /// XY 平面弧: z=z0+rz および z=z0+D-rz (Z平行ストリップとコーナーの境界)
+        // ---- Part 2: ストリップ↔コーナーパッチ境界の弧 ----
+        // 各辺ストリップの2つのシームエッジ (ストリップが四角形quadから成り、
+        // 各quadの "両端辺" がシームになる) を既存頂点インデックスで参照。
+        //
+        // Z平行ストリップ (start=24, 順序 sx=0,1; sy=0,1):
+        //   flip=false (sx==sy):  z=z0+rz側: B+0→B+1,  z=z0+D-rz側: B+3→B+2
+        //   flip=true  (sx!=sy):  z=z0+rz側: B+0→B+3,  z=z0+D-rz側: B+1→B+2
         for (int sx = 0; sx < 2; sx++) {
             for (int sy = 0; sy < 2; sy++) {
-                const float cx = x0 + (sx ? W - rx : rx);
-                const float cy = y0 + (sy ? H - ry : ry);
-                const float dx = sx ? +1.0f : -1.0f;
-                const float dy = sy ? +1.0f : -1.0f;
-                addArcXY(cx, cy, z0 + rz, dx, dy);
-                addArcXY(cx, cy, z0 + D - rz, dx, dy);
+                const bool         flip       = (sx != sy);
+                const unsigned int strip_base = 24u + (unsigned int)(sx * 2 + sy) * segs * 4;
+                for (int k = 0; k < segs; k++) {
+                    const unsigned int B = strip_base + (unsigned int)k * 4;
+                    if (!flip) { addSeg(B + 0, B + 1); addSeg(B + 3, B + 2); }
+                    else       { addSeg(B + 0, B + 3); addSeg(B + 1, B + 2); }
+                }
             }
         }
-        /// XZ 平面弧: y=y0+ry および y=y0+H-ry (Y平行ストリップとコーナーの境界)
+        // Y平行ストリップ (start=24+16*segs, 順序 sx=0,1; sz=0,1):
+        //   flip=false (sx==sz):  y=y0+ry側: B+0→B+3,  y=y0+H-ry側: B+1→B+2
+        //   flip=true  (sx!=sz):  y=y0+ry側: B+0→B+1,  y=y0+H-ry側: B+3→B+2
         for (int sx = 0; sx < 2; sx++) {
             for (int sz = 0; sz < 2; sz++) {
-                const float cx = x0 + (sx ? W - rx : rx);
-                const float cz = z0 + (sz ? D - rz : rz);
-                const float dx = sx ? +1.0f : -1.0f;
-                const float dz = sz ? +1.0f : -1.0f;
-                addArcXZ(cx, y0 + ry, cz, dx, dz);
-                addArcXZ(cx, y0 + H - ry, cz, dx, dz);
+                const bool         flip       = (sx != sz);
+                const unsigned int strip_base = 24u + 16u * segs + (unsigned int)(sx * 2 + sz) * segs * 4;
+                for (int k = 0; k < segs; k++) {
+                    const unsigned int B = strip_base + (unsigned int)k * 4;
+                    if (!flip) { addSeg(B + 0, B + 3); addSeg(B + 1, B + 2); }
+                    else       { addSeg(B + 0, B + 1); addSeg(B + 3, B + 2); }
+                }
             }
         }
-        /// YZ 平面弧: x=x0+rx および x=x0+W-rx (X平行ストリップとコーナーの境界)
+        // X平行ストリップ (start=24+32*segs, 順序 sy=0,1; sz=0,1):
+        //   flip=false (sy==sz):  x=x0+rx側: B+0→B+1,  x=x0+W-rx側: B+3→B+2
+        //   flip=true  (sy!=sz):  x=x0+rx側: B+0→B+3,  x=x0+W-rx側: B+1→B+2
         for (int sy = 0; sy < 2; sy++) {
             for (int sz = 0; sz < 2; sz++) {
-                const float cy = y0 + (sy ? H - ry : ry);
-                const float cz = z0 + (sz ? D - rz : rz);
-                const float dy = sy ? +1.0f : -1.0f;
-                const float dz = sz ? +1.0f : -1.0f;
-                addArcYZ(x0 + rx, cy, cz, dy, dz);
-                addArcYZ(x0 + W - rx, cy, cz, dy, dz);
+                const bool         flip       = (sy != sz);
+                const unsigned int strip_base = 24u + 32u * segs + (unsigned int)(sy * 2 + sz) * segs * 4;
+                for (int k = 0; k < segs; k++) {
+                    const unsigned int B = strip_base + (unsigned int)k * 4;
+                    if (!flip) { addSeg(B + 0, B + 1); addSeg(B + 3, B + 2); }
+                    else       { addSeg(B + 0, B + 3); addSeg(B + 1, B + 2); }
+                }
             }
         }
 
         // ---- Part 3: コーナーパッチの緯度経度線 (wire_segs 本の中間線) ----
-        /// 緯度線 (一定 u): v 方向に弧を描く "平行圏"
-        /// 経度線 (一定 v): u 方向に弧を描く "子午線"
+        // コーナーパッチ (start=24+48*segs, 順序 sx=0,1; sy=0,1; sz=0,1):
+        //   各コーナーは segs×segs 個のquadで構成。quad(ui,vi)のbase B を計算し
+        //   quad内の辺インデックスでシームを参照する。
+        //   flip=true  (sx+sy+sz偶数): 緯度シーム(u=ui+1): B+3→B+2, 経度シーム(v=vi+1): B+1→B+2
+        //   flip=false (sx+sy+sz奇数): 緯度シーム(u=ui+1): B+1→B+2, 経度シーム(v=vi+1): B+3→B+2
         if (wire_segs > 0) {
+            const unsigned int base_corners = 24u + 48u * segs;
             for (int sx = 0; sx < 2; sx++) {
                 for (int sy = 0; sy < 2; sy++) {
                     for (int sz = 0; sz < 2; sz++) {
-                        const float cx = x0 + (sx ? W - rx : rx);
-                        const float cy = y0 + (sy ? H - ry : ry);
-                        const float cz = z0 + (sz ? D - rz : rz);
-                        const float dx = sx ? +1.0f : -1.0f;
-                        const float dy = sy ? +1.0f : -1.0f;
-                        const float dz = sz ? +1.0f : -1.0f;
-                        auto spt = [&](float u, float v) -> Point3f {
-                            return {cx + dx * rx * std::sin(u) * std::cos(v),
-                                    cy + dy * ry * std::sin(u) * std::sin(v),
-                                    cz + dz * rz * std::cos(u)};
-                        };
-                        /// 緯度線: 固定 u で v を [0, π/2] に沿って描く
+                        const bool         flip         = ((sx + sy + sz) % 2 == 0);
+                        const unsigned int corner_base  = base_corners
+                                                          + (unsigned int)(sx * 4 + sy * 2 + sz) * segs * segs * 4;
+                        /// 緯度線: u=row_ui+1 のシーム (固定u, vを[0,π/2]に沿って描く "平行圏")
                         for (int i = 1; i <= wire_segs; i++) {
-                            const float u = (float)i * (float)M_PI_2 / (wire_segs + 1);
-                            for (int k = 0; k < segs; k++) {
-                                const float v0 = (float)k * (float)M_PI_2 / segs;
-                                const float v1 = (float)(k + 1) * (float)M_PI_2 / segs;
-                                addLine(spt(u, v0), spt(u, v1));
+                            const int row_ui = std::max(0, std::min(segs - 1,
+                                              (int)std::round((float)i * segs / (wire_segs + 1)) - 1));
+                            for (int vi = 0; vi < segs; vi++) {
+                                const unsigned int B = corner_base + (unsigned int)(row_ui * segs + vi) * 4;
+                                if (flip) { addSeg(B + 3, B + 2); }
+                                else      { addSeg(B + 1, B + 2); }
                             }
                         }
-                        /// 経度線: 固定 v で u を [0, π/2] に沿って描く
+                        /// 経度線: v=col_vi+1 のシーム (固定v, uを[0,π/2]に沿って描く "子午線")
                         for (int j = 1; j <= wire_segs; j++) {
-                            const float v = (float)j * (float)M_PI_2 / (wire_segs + 1);
-                            for (int k = 0; k < segs; k++) {
-                                const float u0 = (float)k * (float)M_PI_2 / segs;
-                                const float u1 = (float)(k + 1) * (float)M_PI_2 / segs;
-                                addLine(spt(u0, v), spt(u1, v));
+                            const int col_vi = std::max(0, std::min(segs - 1,
+                                              (int)std::round((float)j * segs / (wire_segs + 1)) - 1));
+                            for (int ui = 0; ui < segs; ui++) {
+                                const unsigned int B = corner_base + (unsigned int)(ui * segs + col_vi) * 4;
+                                if (flip) { addSeg(B + 1, B + 2); }
+                                else      { addSeg(B + 3, B + 2); }
                             }
                         }
                     }
