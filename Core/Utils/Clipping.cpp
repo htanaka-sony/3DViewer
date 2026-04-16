@@ -2260,7 +2260,7 @@ void Clipping::triangleFromOutline(const std::vector<ClippingLoop*>& outline, st
                 if (itr_insert.second) {
                     out_indices.emplace_back((unsigned int)out_vertices.size());
                     out_vertices.emplace_back(out_vertices_input[origin_point_index]);
-                    out_index_old_new[origin_point_index] = out_vertices.size() - 1;
+                    out_index_old_new[origin_point_index] = (int)out_vertices.size() - 1;
                 }
                 else {
                     out_indices.emplace_back((unsigned int)itr_insert.first->second);
@@ -2362,7 +2362,7 @@ void Clipping::addSegents(const std::vector<ClippingLoop*>& outline, std::vector
             }
             else {
                 out_vertices.emplace_back(out_vertices_input[index_0]);
-                out_index_old_new[index_0] = out_vertices.size() - 1;
+                out_index_old_new[index_0] = (int)out_vertices.size() - 1;
                 out_segments.emplace_back((unsigned int)(out_vertices.size() - 1));
             }
 
@@ -2372,7 +2372,7 @@ void Clipping::addSegents(const std::vector<ClippingLoop*>& outline, std::vector
             }
             else {
                 out_vertices.emplace_back(out_vertices_input[index_1]);
-                out_index_old_new[index_1] = out_vertices.size() - 1;
+                out_index_old_new[index_1] = (int)out_vertices.size() - 1;
                 out_segments.emplace_back((unsigned int)(out_vertices.size() - 1));
             }
         }
@@ -2392,7 +2392,7 @@ void Clipping::addSegents(const std::vector<ClippingLoop*>& outline, std::vector
                 }
                 else {
                     out_vertices.emplace_back(out_vertices_input[index_0]);
-                    out_index_old_new[index_0] = out_vertices.size() - 1;
+                    out_index_old_new[index_0] = (int)out_vertices.size() - 1;
                     out_segments.emplace_back((unsigned int)(out_vertices.size() - 1));
                 }
 
@@ -2402,7 +2402,7 @@ void Clipping::addSegents(const std::vector<ClippingLoop*>& outline, std::vector
                 }
                 else {
                     out_vertices.emplace_back(out_vertices_input[index_1]);
-                    out_index_old_new[index_1] = out_vertices.size() - 1;
+                    out_index_old_new[index_1] = (int)out_vertices.size() - 1;
                     out_segments.emplace_back((unsigned int)(out_vertices.size() - 1));
                 }
             }
@@ -2556,7 +2556,7 @@ void Clipping::triangleFromOutline(const std::vector<ClippingLoop*>& outline, st
                     Vertexf v = out_vertices_input[origin_point_index];
                     v.m_normal = fill_normal;
                     out_vertices.emplace_back(v);
-                    out_index_old_new[origin_point_index] = out_vertices.size() - 1;
+                    out_index_old_new[origin_point_index] = (int)out_vertices.size() - 1;
                 }
                 else {
                     out_indices.emplace_back((unsigned int)itr_insert.first->second);
@@ -2594,7 +2594,7 @@ void Clipping::addSegents(const std::vector<ClippingLoop*>& outline, std::vector
             }
             else {
                 out_vertices.emplace_back(out_vertices_input[index_0]);
-                out_index_old_new[index_0] = out_vertices.size() - 1;
+                out_index_old_new[index_0] = (int)out_vertices.size() - 1;
                 out_segments.emplace_back((unsigned int)(out_vertices.size() - 1));
             }
 
@@ -2604,7 +2604,7 @@ void Clipping::addSegents(const std::vector<ClippingLoop*>& outline, std::vector
             }
             else {
                 out_vertices.emplace_back(out_vertices_input[index_1]);
-                out_index_old_new[index_1] = out_vertices.size() - 1;
+                out_index_old_new[index_1] = (int)out_vertices.size() - 1;
                 out_segments.emplace_back((unsigned int)(out_vertices.size() - 1));
             }
         }
@@ -2624,7 +2624,7 @@ void Clipping::addSegents(const std::vector<ClippingLoop*>& outline, std::vector
                 }
                 else {
                     out_vertices.emplace_back(out_vertices_input[index_0]);
-                    out_index_old_new[index_0] = out_vertices.size() - 1;
+                    out_index_old_new[index_0] = (int)out_vertices.size() - 1;
                     out_segments.emplace_back((unsigned int)(out_vertices.size() - 1));
                 }
 
@@ -2634,7 +2634,7 @@ void Clipping::addSegents(const std::vector<ClippingLoop*>& outline, std::vector
                 }
                 else {
                     out_vertices.emplace_back(out_vertices_input[index_1]);
-                    out_index_old_new[index_1] = out_vertices.size() - 1;
+                    out_index_old_new[index_1] = (int)out_vertices.size() - 1;
                     out_segments.emplace_back((unsigned int)(out_vertices.size() - 1));
                 }
             }
