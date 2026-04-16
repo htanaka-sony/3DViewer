@@ -250,7 +250,7 @@ void RenderMesh::createBoxTapper(const BoundingBox3f& box, float taperDistance)
     markBoxDirty();
 }
 
-void RenderMesh::updateBoundingBox()
+void RenderMesh::updateBoundingBox() const
 {
     m_bbox.init();
     for (const auto& vertex : m_vertices) {
@@ -331,7 +331,7 @@ RenderEditableMesh::RenderEditableMesh(const RenderEditableMesh& other)
     }
 }
 
-void RenderEditableMesh::updateBoundingBox()
+void RenderEditableMesh::updateBoundingBox() const
 {
     m_bbox.init();
     if (isEnableEditDisplayData()) {
@@ -392,7 +392,7 @@ void RenderEditableMesh::createDisplaySegmentsGroupData()
     resetSegmentsGroupDirty();
 }
 
-void RenderEditableMesh::createGroupBoundingBox()
+void RenderEditableMesh::createGroupBoundingBox() const
 {
     const auto& vertex_list = isEnableEditDisplayData() ? displayEditVertices() : displayVertices();
     const auto& index_list  = isEnableEditDisplayData() ? displayEditIndices() : displayIndices();

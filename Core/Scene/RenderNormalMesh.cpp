@@ -445,7 +445,7 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     markBoxDirty();
 }
 
-void RenderNormalMesh::updateBoundingBox()
+void RenderNormalMesh::updateBoundingBox() const
 {
     m_bbox.init();
     for (const auto& vertex : m_vertices) {
@@ -566,7 +566,7 @@ RenderEditableNormalMesh::RenderEditableNormalMesh(const RenderEditableNormalMes
     }
 }
 
-void RenderEditableNormalMesh::updateBoundingBox()
+void RenderEditableNormalMesh::updateBoundingBox() const
 {
     m_bbox.init();
     if (isEnableEditDisplayData()) {
@@ -627,7 +627,7 @@ void RenderEditableNormalMesh::createDisplaySegmentsGroupData()
     resetSegmentsGroupDirty();
 }
 
-void RenderEditableNormalMesh::createGroupBoundingBox()
+void RenderEditableNormalMesh::createGroupBoundingBox() const
 {
     const auto& vertex_list = isEnableEditDisplayData() ? displayEditVertices() : displayVertices();
     const auto& index_list  = isEnableEditDisplayData() ? displayEditIndices() : displayIndices();

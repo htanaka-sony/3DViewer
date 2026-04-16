@@ -216,6 +216,13 @@ public:
             && (v.m_z >= m_min.m_z && v.m_z <= m_max.m_z);
     }
 
+    inline bool contains(const BoundingBox3f& other) const
+    {
+        return valid() && other.valid() && other.m_min.m_x >= m_min.m_x && other.m_max.m_x <= m_max.m_x
+            && other.m_min.m_y >= m_min.m_y && other.m_max.m_y <= m_max.m_y && other.m_min.m_z >= m_min.m_z
+            && other.m_max.m_z <= m_max.m_z;
+    }
+
     inline void setInitPoint(float x, float y, float z)
     {
         m_min.m_x = m_max.m_x = x;

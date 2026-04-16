@@ -20,7 +20,7 @@ public:
     void createBoxTapper(const BoundingBox3f& box, float taperDistance);
 
 public:
-    virtual void          updateBoundingBox();
+    virtual void          updateBoundingBox() const;
     virtual BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
                                                bool including_text) const;
 
@@ -58,7 +58,7 @@ protected:
     RenderEditableMesh(const RenderEditableMesh& other);
 
 public:
-    virtual void          updateBoundingBox();
+    virtual void          updateBoundingBox() const;
     virtual BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
                                                bool including_text) const;
 
@@ -130,7 +130,7 @@ public:
 
     const std::vector<BoundingBox3f>& displayTriaGroupBox() const { return m_tria_group_box; }
     const std::vector<unsigned int>&  displayTriaGroupStart() const { return m_tria_group_start_index; }
-    void                              createGroupBoundingBox();
+    void                              createGroupBoundingBox() const;
 
     virtual void clearDisplayData() override;
 
@@ -159,8 +159,8 @@ protected:
     std::vector<unsigned int>  m_segments_group_start_index;
 
     /// TODO: 暫定: 高速化のためトリアをグループで分ける
-    std::vector<BoundingBox3f> m_tria_group_box;
-    std::vector<unsigned int>  m_tria_group_start_index;
+    mutable std::vector<BoundingBox3f> m_tria_group_box;
+    mutable std::vector<unsigned int>  m_tria_group_start_index;
 
     /// Display Edit Data(ClippingData)
     std::vector<Point3f>      m_edit_vertices;

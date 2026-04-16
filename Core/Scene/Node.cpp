@@ -2,6 +2,8 @@
 #include "Annotation.h"
 #include "Shape.h"
 
+#include <algorithm>
+
 CORE_NAMESPACE_BEGIN
 
 Node::Node()
@@ -467,25 +469,98 @@ BoundingBox3f Node::renderableBoundingBox()
 
 BoundingBox3f Node::calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible, bool including_text) const
 {
-    if (only_visible && !isVisible()) {
+    // Leaf entry: a renderable or object together with its accumulated world matrix and a
+    // conservative world AABB (8-corner transform of the local AABB, which is a valid superset
+    // of the exact world AABB).  For plain objects (Dimension, Annotation, …) we compute the
+    // exact bbox directly because they have only a handful of points.
+    struct LeafEntry {
+        const RenderableNode* renderable;         // non-null when the leaf owns a renderable
+        BoundingBox3f         conservativeWorldBbox;  // 8-corner approximation or exact for objects
+        Matrix4x4f            worldMatrix;
+    };
+
+    std::vector<LeafEntry> leaves;
+    leaves.reserve(64);
+
+    // Phase 1 – flatten the tree into a list of leaves, computing conservative world bboxes.
+    std::function<void(const Node*, const Matrix4x4f&)> collect =
+        [&](const Node* node, const Matrix4x4f& parentMat) {
+            if (only_visible && !node->isVisible()) {
+                return;
+            }
+
+            Matrix4x4f curMat = parentMat * node->m_matrix;
+
+            if (node->m_renderable != nullptr) {
+                // Get the cached local AABB of this renderable (lazy-initialised, const-safe via
+                // mutable cache).  The 8-corner world transform gives a conservative superset of
+                // the true world AABB when the node has a rotation component.
+                BoundingBox3f localBbox = node->m_renderable->boundingBox();
+                BoundingBox3f conserv;
+                if (localBbox.valid()) {
+                    conserv = curMat * localBbox;
+                }
+                leaves.push_back({node->m_renderable.ptr(), conserv, curMat});
+            }
+            else if (node->m_object != nullptr) {
+                // Objects like Dimension have only a handful of points so computing the exact
+                // world bbox here is cheap; reuse it as the conservative bbox.
+                BoundingBox3f exact =
+                    node->m_object->calculateBoundingBox(curMat, only_visible, including_text);
+                leaves.push_back({nullptr, exact, curMat});
+            }
+
+            for (const auto& child : node->m_children) {
+                collect(child.ptr(), curMat);
+            }
+        };
+
+    collect(this, parent_matrix);
+
+    if (leaves.empty()) {
         return BoundingBox3f();
     }
 
-    Matrix4x4f cur_matrix = parent_matrix * m_matrix;
+    // Phase 2 – sort leaves so the spatially most extreme ones (those most likely to define the
+    // final bbox boundary) are processed first.  We use the diagonal length of the conservative
+    // world AABB as a proxy: larger items tend to sit at the extremes and will quickly establish
+    // the outer bounds so that subsequent items can be skipped.
+    std::sort(leaves.begin(), leaves.end(), [](const LeafEntry& a, const LeafEntry& b) {
+        auto diag2 = [](const BoundingBox3f& bb) -> float {
+            if (!bb.valid()) {
+                return 0.f;
+            }
+            float dx = bb.xMax() - bb.xMin();
+            float dy = bb.yMax() - bb.yMin();
+            float dz = bb.zMax() - bb.zMin();
+            return dx * dx + dy * dy + dz * dz;
+        };
+        return diag2(a.conservativeWorldBbox) > diag2(b.conservativeWorldBbox);
+    });
 
-    BoundingBox3f new_bbox;
-    if (m_renderable != nullptr) {
-        new_bbox.expandBy(m_renderable->calculateBoundingBox(cur_matrix, only_visible, including_text));
-    }
-    else if (m_object != nullptr) {
-        new_bbox.expandBy(m_object->calculateBoundingBox(cur_matrix, only_visible, including_text));
+    // Phase 3 – process leaves in sorted order, computing the exact world bbox only when the
+    // conservative world AABB is not already fully contained in the accumulated result.
+    // Because conservative ⊇ exact, containment of conservative implies containment of exact,
+    // so it is safe to skip those leaves entirely.
+    BoundingBox3f accum;
+    for (const auto& entry : leaves) {
+        if (accum.contains(entry.conservativeWorldBbox)) {
+            continue;
+        }
+
+        BoundingBox3f exact;
+        if (entry.renderable != nullptr) {
+            exact = entry.renderable->calculateBoundingBox(entry.worldMatrix, only_visible, including_text);
+        }
+        else {
+            // Object leaves already hold the exact bbox in conservativeWorldBbox.
+            exact = entry.conservativeWorldBbox;
+        }
+
+        accum.expandBy(exact);
     }
 
-    for (auto& child : m_children) {
-        new_bbox.expandBy(child->calculateBoundingBox(cur_matrix, only_visible, including_text));
-    }
-
-    return new_bbox;
+    return accum;
 }
 
 void Node::setMatrix(const Matrix4x4f& matrix)

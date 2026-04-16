@@ -73,21 +73,21 @@ protected:
 public:
     virtual RefPtr<Renderable> cloneRenderable() const = 0;
     virtual RenderableType     type() const            = 0;
-    virtual BoundingBox3f      boundingBox()
+    virtual BoundingBox3f      boundingBox() const
     {
         if (isBoxDirty()) {
             updateBoundingBox();
         }
         return m_bbox;
     }
-    virtual void          updateBoundingBox()                             = 0;
+    virtual void          updateBoundingBox() const                       = 0;
     virtual BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible,
                                                bool including_text) const = 0;    /// 都度計算
 
     virtual void clearDisplayData() {}
 
     void markBoxDirty() { m_box_dirty = true; }
-    void resetBoxDirty() { m_box_dirty = false; }
+    void resetBoxDirty() const { m_box_dirty = false; }
     bool isBoxDirty() const { return m_box_dirty; }
 
     virtual void           setColor(const Point3f& color) { setColor(color[0], color[1], color[2]); }
@@ -136,8 +136,8 @@ protected:
 
     Point4f m_color;
 
-    BoundingBox3f m_bbox;
-    bool          m_box_dirty    = true;
+    mutable BoundingBox3f m_bbox;
+    mutable bool          m_box_dirty    = true;
     bool          m_render_dirty = true;
 };
 
