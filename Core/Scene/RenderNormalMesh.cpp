@@ -243,7 +243,7 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
                     const float v = (float)vi * (float)M_PI_2 / segs;
                     return sphereNorm(u, v, dx, dy, dz);
                 };
-                /// 符号の積 dx*dy*dz が負（マイナスの個数が奇数）のとき
+                /// マイナス符号の個数が奇数のとき（sx+sy+sz が偶数: 0,2 → マイナス1つまたは3つ）
                 /// d/du×d/dv が内向きになるので巻き順を反転して外向き法線を保つ
                 const bool flip = ((sx + sy + sz) % 2 == 0);
                 for (int ui = 0; ui < segs; ui++) {
