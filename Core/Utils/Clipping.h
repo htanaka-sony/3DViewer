@@ -75,6 +75,7 @@ protected:
         int*                 m_work_old_new_indices      = nullptr;
         int                  m_work_old_new_indices_size = 0;
         std::vector<Point3f> m_work_vertex_list;
+        std::vector<Vertexf> m_work_vertex_list_normal;
         // std::vector<unsigned int> m_work_index_list;
         ~ClippingWork() { delete[] m_work_old_new_indices; }
     };
@@ -92,6 +93,20 @@ protected:
                            std::vector<Point3f>& out_vertices, std::vector<unsigned int>& out_indices,
                            std::vector<unsigned int>& out_segments, bool create_segment, bool create_fill,
                            ClippingWork* work_space);
+
+    /// 通常のクリッピング (法線付き: RenderNormalMesh用)
+    bool clippingNormal(const std::vector<Vertexf>& in_vertices, const std::vector<unsigned int>& in_indices,
+                        const std::vector<unsigned int>& in_segments, const PlaneInfo& plane_info,
+                        std::vector<Vertexf>& out_vertices, std::vector<unsigned int>& out_indices,
+                        std::vector<unsigned int>& out_segments, bool create_segment, bool create_fill,
+                        bool after_2d_clip, ClippingWork* work_space);
+
+    /// クリッピング面だけを取得 (法線付き: RenderNormalMesh用)
+    bool clippingOnlyPlaneNormal(const std::vector<Vertexf>& in_vertices, const std::vector<unsigned int>& in_indices,
+                                 const std::vector<unsigned int>& in_segments, const PlaneInfo& plane_info,
+                                 std::vector<Vertexf>& out_vertices, std::vector<unsigned int>& out_indices,
+                                 std::vector<unsigned int>& out_segments, bool create_segment, bool create_fill,
+                                 ClippingWork* work_space);
 
     /// 自動寸法用
     bool clippingForAutoLength(const std::vector<Point3f>& in_vertices, const std::vector<unsigned int>& in_indices,
@@ -112,6 +127,14 @@ protected:
                               bool only_get_on_plane, bool after_2d_clip, std::vector<EdgeInfo>& edge_list,
                               ClippingWork* work_space);
 
+    /// 法線付き版 (RenderNormalMesh用): カット位置で法線を補間して新頂点を生成
+    bool clipPolygonWithPlane(const std::vector<Vertexf>& in_vertices, const std::vector<unsigned int>& in_indices,
+                              const std::vector<unsigned int>& in_segments, const PlaneInfo& plane_info,
+                              std::vector<Vertexf>& out_vertices, std::vector<unsigned int>& out_indices,
+                              std::vector<unsigned int>& out_segments, bool create_segment, bool create_fill,
+                              bool only_get_on_plane, bool after_2d_clip, std::vector<EdgeInfo>& edge_list,
+                              ClippingWork* work_space);
+
     void createContour(const std::vector<EdgeInfo>& edge_list, std::vector<ClippingLoop*>& contours,
                        ClippingWork* work_space);
 
@@ -127,9 +150,24 @@ protected:
                              const PlaneInfo& plane_info, std::vector<unsigned int>& out_indices,
                              ClippingWork* work_space);
 
+    /// 法線付き版 (RenderNormalMesh用): 断面塗りつぶし頂点に平面法線を設定
+    void triangleFromOutline(const std::vector<ClippingLoop*>& outline, std::vector<Vertexf>& out_vertices,
+                             const PlaneInfo& plane_info, std::vector<unsigned int>& out_indices,
+                             ClippingWork* work_space);
+
+    void triangleFromOutline(const std::vector<ClippingLoop*>& outline, std::vector<Vertexf>& out_vertices_input,
+                             std::vector<Vertexf>& out_vertices, std::map<int, int>& out_index_old_new,
+                             const PlaneInfo& plane_info, std::vector<unsigned int>& out_indices,
+                             ClippingWork* work_space);
+
     void addSegents(const std::vector<ClippingLoop*>& outline, std::vector<unsigned int>& out_segments);
     void addSegents(const std::vector<ClippingLoop*>& outline, std::vector<unsigned int>& out_segments,
                     std::vector<Point3f>& out_vertices_input, std::vector<Point3f>& out_vertices,
+                    std::map<int, int>& out_index_old_new);
+
+    /// 法線付き版 (RenderNormalMesh用)
+    void addSegents(const std::vector<ClippingLoop*>& outline, std::vector<unsigned int>& out_segments,
+                    std::vector<Vertexf>& out_vertices_input, std::vector<Vertexf>& out_vertices,
                     std::map<int, int>& out_index_old_new);
 
 protected:

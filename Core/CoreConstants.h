@@ -21,6 +21,8 @@ enum class RenderableType {
     TypeNone = 0,    /// 未設定
     RenderMesh,
     RenderEditableMesh,
+    RenderNormalMesh,
+    RenderEditableNormalMesh,
 };
 
 enum class AttributeType {
