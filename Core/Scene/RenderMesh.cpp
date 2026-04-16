@@ -92,34 +92,36 @@ void RenderMesh::createBoxShape(const BoundingBox3f& box)
     m_indices.emplace_back(2);
     m_indices.emplace_back(3);
 
-    /// 線描画用インデックス（12辺 × 2頂点 = 24インデックス）
-    /// 底面 (Z-)
-    m_segments_indices.emplace_back(0);
-    m_segments_indices.emplace_back(1);
-    m_segments_indices.emplace_back(1);
-    m_segments_indices.emplace_back(2);
-    m_segments_indices.emplace_back(2);
-    m_segments_indices.emplace_back(3);
-    m_segments_indices.emplace_back(3);
-    m_segments_indices.emplace_back(0);
-    /// 上面 (Z+)
-    m_segments_indices.emplace_back(4);
-    m_segments_indices.emplace_back(5);
-    m_segments_indices.emplace_back(5);
-    m_segments_indices.emplace_back(6);
-    m_segments_indices.emplace_back(6);
-    m_segments_indices.emplace_back(7);
-    m_segments_indices.emplace_back(7);
-    m_segments_indices.emplace_back(4);
-    /// 縦辺 (Z方向)
-    m_segments_indices.emplace_back(0);
-    m_segments_indices.emplace_back(4);
-    m_segments_indices.emplace_back(1);
-    m_segments_indices.emplace_back(5);
-    m_segments_indices.emplace_back(2);
-    m_segments_indices.emplace_back(6);
-    m_segments_indices.emplace_back(3);
-    m_segments_indices.emplace_back(7);
+    if (m_create_section_line) {
+        /// 線描画用インデックス（12辺 × 2頂点 = 24インデックス）
+        /// 底面 (Z-)
+        m_segments_indices.emplace_back(0);
+        m_segments_indices.emplace_back(1);
+        m_segments_indices.emplace_back(1);
+        m_segments_indices.emplace_back(2);
+        m_segments_indices.emplace_back(2);
+        m_segments_indices.emplace_back(3);
+        m_segments_indices.emplace_back(3);
+        m_segments_indices.emplace_back(0);
+        /// 上面 (Z+)
+        m_segments_indices.emplace_back(4);
+        m_segments_indices.emplace_back(5);
+        m_segments_indices.emplace_back(5);
+        m_segments_indices.emplace_back(6);
+        m_segments_indices.emplace_back(6);
+        m_segments_indices.emplace_back(7);
+        m_segments_indices.emplace_back(7);
+        m_segments_indices.emplace_back(4);
+        /// 縦辺 (Z方向)
+        m_segments_indices.emplace_back(0);
+        m_segments_indices.emplace_back(4);
+        m_segments_indices.emplace_back(1);
+        m_segments_indices.emplace_back(5);
+        m_segments_indices.emplace_back(2);
+        m_segments_indices.emplace_back(6);
+        m_segments_indices.emplace_back(3);
+        m_segments_indices.emplace_back(7);
+    }
 
     markRenderDirty();
     markBoxDirty();
@@ -212,34 +214,37 @@ void RenderMesh::createBoxTapper(const BoundingBox3f& box, float taperDistance)
     m_indices.emplace_back(6);
     m_indices.emplace_back(5);
     m_indices.emplace_back(1);
-    /// ワイヤーフレーム: 底面・上面の輪郭 + 縦辺4本
-    /// 底面 (Z-)
-    m_segments_indices.emplace_back(0);
-    m_segments_indices.emplace_back(1);
-    m_segments_indices.emplace_back(1);
-    m_segments_indices.emplace_back(2);
-    m_segments_indices.emplace_back(2);
-    m_segments_indices.emplace_back(3);
-    m_segments_indices.emplace_back(3);
-    m_segments_indices.emplace_back(0);
-    /// 上面 (Z+)
-    m_segments_indices.emplace_back(4);
-    m_segments_indices.emplace_back(5);
-    m_segments_indices.emplace_back(5);
-    m_segments_indices.emplace_back(6);
-    m_segments_indices.emplace_back(6);
-    m_segments_indices.emplace_back(7);
-    m_segments_indices.emplace_back(7);
-    m_segments_indices.emplace_back(4);
-    /// 縦辺 (Z方向)
-    m_segments_indices.emplace_back(0);
-    m_segments_indices.emplace_back(4);
-    m_segments_indices.emplace_back(1);
-    m_segments_indices.emplace_back(5);
-    m_segments_indices.emplace_back(2);
-    m_segments_indices.emplace_back(6);
-    m_segments_indices.emplace_back(3);
-    m_segments_indices.emplace_back(7);
+
+    if (m_create_section_line) {
+        /// ワイヤーフレーム: 底面・上面の輪郭 + 縦辺4本
+        /// 底面 (Z-)
+        m_segments_indices.emplace_back(0);
+        m_segments_indices.emplace_back(1);
+        m_segments_indices.emplace_back(1);
+        m_segments_indices.emplace_back(2);
+        m_segments_indices.emplace_back(2);
+        m_segments_indices.emplace_back(3);
+        m_segments_indices.emplace_back(3);
+        m_segments_indices.emplace_back(0);
+        /// 上面 (Z+)
+        m_segments_indices.emplace_back(4);
+        m_segments_indices.emplace_back(5);
+        m_segments_indices.emplace_back(5);
+        m_segments_indices.emplace_back(6);
+        m_segments_indices.emplace_back(6);
+        m_segments_indices.emplace_back(7);
+        m_segments_indices.emplace_back(7);
+        m_segments_indices.emplace_back(4);
+        /// 縦辺 (Z方向)
+        m_segments_indices.emplace_back(0);
+        m_segments_indices.emplace_back(4);
+        m_segments_indices.emplace_back(1);
+        m_segments_indices.emplace_back(5);
+        m_segments_indices.emplace_back(2);
+        m_segments_indices.emplace_back(6);
+        m_segments_indices.emplace_back(3);
+        m_segments_indices.emplace_back(7);
+    }
 
     markRenderDirty();
     markBoxDirty();

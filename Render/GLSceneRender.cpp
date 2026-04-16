@@ -1747,8 +1747,8 @@ bool GLSceneRender::renderNormalMesh(Node* node, NormalMesh* mesh)
 
 bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
 {
-    RenderEditableMesh* mesh = (RenderEditableMesh*)node->renderable();
-    return renderRenderableMesh(node, mesh, voxel);
+    RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)node->renderable();
+    return renderRenderableNormalMesh(node, mesh, voxel);
 }
 
 Point4f getColor(float value, const float divisions[], const Point4f colors[])
@@ -2594,8 +2594,8 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
 
             if (draw_priority != 0) {
                 m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value   = -0.0001f * (float)draw_priority;
-                float polygon_offset = -0.05f * (float)draw_priority;
+                float offset_value   = -0.000001f * (float)draw_priority;
+                float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
                 m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
@@ -2808,8 +2808,8 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
 
             if (draw_priority != 0) {
                 m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value   = -0.0001f * (float)draw_priority;
-                float polygon_offset = -0.05f * (float)draw_priority;
+                float offset_value   = -0.000001f * (float)draw_priority;
+                float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
                 m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
@@ -3253,8 +3253,8 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
 
             if (draw_priority != 0) {
                 m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value   = -0.0001f * (float)draw_priority;
-                float polygon_offset = -0.05f * (float)draw_priority;
+                float offset_value   = -0.000001f * (float)draw_priority;
+                float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
                 m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
@@ -3467,8 +3467,8 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
 
             if (draw_priority != 0) {
                 m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value   = -0.0001f * (float)draw_priority;
-                float polygon_offset = -0.05f * (float)draw_priority;
+                float offset_value   = -0.000001f * (float)draw_priority;
+                float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
                 m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);

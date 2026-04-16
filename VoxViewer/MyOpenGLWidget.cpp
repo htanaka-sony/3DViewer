@@ -1466,22 +1466,22 @@ bool MyOpenGLWidget::adjustPickData(PickData& pick_data, bool above_pick_point, 
     /// 暫定: Pick補正
     auto pick_node_object = pick_data.pickNodeObject();
 
-    if (pick_node_object && pick_node_object->isVoxel()) {
+    if (pick_node_object && pick_node_object->isShape()) {
         /// ピック位置のトリア取得
         std::vector<Picking::SIntersectionInfo> intersections;
         Picking                                 picking(m_scene_view.ptr());
         picking.setOnlyMinimum(true);
 
-        std::vector<Node*> voxels;
+        std::vector<Node*> shapes;
         if (pick_nodes) {
             for (auto pick_node : *pick_nodes) {
                 auto object = pick_node->object();
-                if (object && object->isVoxel()) {
-                    voxels.emplace_back(pick_node);
+                if (object && object->isShape()) {
+                    shapes.emplace_back(pick_node);
                 }
             }
         }
-        std::vector<Node*>* target_nodes = voxels.size() > 0 ? &voxels : nullptr;
+        std::vector<Node*>* target_nodes = shapes.size() > 0 ? &shapes : nullptr;
 
         picking.bodyLineIntersection(pick_data.pickPoint(), m_scene_view->cameraDir(pick_data.pickPoint()), true,
                                      intersections, m_scene_view->sceneGraph()->lengthUnit().epsilonValidLength(),
@@ -1499,7 +1499,7 @@ bool MyOpenGLWidget::adjustPickData(PickData& pick_data, bool above_pick_point, 
             return true;
         }
     }
-    else if (pick_node_object && !pick_node_object->isVoxel()) {
+    else if (pick_node_object && !pick_node_object->isShape()) {
         return true;
     }
     else {
@@ -1508,16 +1508,16 @@ bool MyOpenGLWidget::adjustPickData(PickData& pick_data, bool above_pick_point, 
         Picking                                 picking(m_scene_view.ptr());
         picking.setOnlyMinimum(true);
 
-        std::vector<Node*> voxels;
+        std::vector<Node*> shapes;
         if (pick_nodes) {
             for (auto pick_node : *pick_nodes) {
                 auto object = pick_node->object();
-                if (object && object->isVoxel()) {
-                    voxels.emplace_back(pick_node);
+                if (object && object->isShape()) {
+                    shapes.emplace_back(pick_node);
                 }
             }
         }
-        std::vector<Node*>* target_nodes = voxels.size() > 0 ? &voxels : nullptr;
+        std::vector<Node*>* target_nodes = shapes.size() > 0 ? &shapes : nullptr;
 
         picking.bodyLineIntersection(pick_data.pickPoint(), m_scene_view->cameraDir(pick_data.pickPoint()), true,
                                      intersections, m_scene_view->sceneGraph()->lengthUnit().epsilonValidLength(),
