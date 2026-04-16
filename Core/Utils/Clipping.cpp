@@ -612,6 +612,37 @@ bool Clipping::clippingForAutoLength(const std::vector<Point3f>&      in_vertice
     return true;
 }
 
+bool Clipping::clippingForAutoLengthNormal(const std::vector<Vertexf>&      in_vertices,
+                                           const std::vector<unsigned int>& in_indices, const PlaneInfo& plane_info,
+                                           std::vector<Vertexf>& out_vertices, std::vector<unsigned int>& out_indices,
+                                           ClippingWork* work_space)
+{
+    std::vector<EdgeInfo>     edge_list;
+    std::vector<unsigned int> dummy;
+    if (!clipPolygonWithPlane(in_vertices, in_indices, dummy, plane_info, out_vertices, out_indices, dummy, false, true,
+                              false, false, edge_list, work_space)) {
+        return false;
+    }
+    if (out_indices.empty()) {
+        return false;
+    }
+
+    std::vector<ClippingLoop*> contours;
+    createContour(edge_list, contours, work_space);
+
+    std::vector<std::vector<ClippingLoop*>> outlines;
+    outlinesFromLoops(contours, outlines, work_space);
+    for (auto& outline : outlines) {
+        triangleFromOutline(outline, out_vertices, plane_info, out_indices, work_space);
+    }
+
+    for (auto& loop : contours) {
+        delete loop;
+    }
+
+    return true;
+}
+
 bool Clipping::clippingNormal(const std::vector<Vertexf>& in_vertices, const std::vector<unsigned int>& in_indices,
                               const std::vector<unsigned int>& in_segments, const PlaneInfo& plane_info,
                               std::vector<Vertexf>& out_vertices, std::vector<unsigned int>& out_indices,

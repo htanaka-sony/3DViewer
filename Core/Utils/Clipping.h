@@ -113,6 +113,12 @@ protected:
                                const PlaneInfo& plane_info, std::vector<Point3f>& out_vertices,
                                std::vector<unsigned int>& out_indices, ClippingWork* work_space);
 
+    /// 自動寸法用 (法線付き: RenderNormalMesh用)
+    bool clippingForAutoLengthNormal(const std::vector<Vertexf>& in_vertices,
+                                     const std::vector<unsigned int>& in_indices, const PlaneInfo& plane_info,
+                                     std::vector<Vertexf>& out_vertices, std::vector<unsigned int>& out_indices,
+                                     ClippingWork* work_space);
+
     bool clipPolygonWithPlaneSimple(const std::vector<Point3f>&      in_vertices,
                                     const std::vector<unsigned int>& in_indices, const PlaneInfo& plane_info,
                                     std::vector<std::pair<Point3f, Point3f>>& out_edges, BoundingBox3f* clip_area);
