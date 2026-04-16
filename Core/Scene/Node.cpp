@@ -480,7 +480,7 @@ BoundingBox3f Node::calculateBoundingBox(const Matrix4x4f& parent_matrix, bool o
     };
 
     std::vector<LeafEntry> leaves;
-    leaves.reserve(64);
+    leaves.reserve(128);    // reasonable starting capacity for a typical scene
 
     // Phase 1 – flatten the tree into a list of leaves, computing conservative world bboxes.
     std::function<void(const Node*, const Matrix4x4f&)> collect =
