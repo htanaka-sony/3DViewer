@@ -2458,7 +2458,8 @@ void Clipping::triangleFromOutline(const std::vector<ClippingLoop*>& outline, st
         const std::vector<unsigned int>& indices = mapbox::earcut<unsigned int>(polygons);
 
         std::map<int, int> index_to_tria_index;
-        const Point3f      fill_normal = plane_info.m_plane.normal();
+        /// トリア法線方向が平面法線と逆なので、断面法線は平面法線を反転する
+        const Point3f      fill_normal = -plane_info.m_plane.normal();
 
         for (int ic = 0; ic < (int)indices.size(); ic += 3) {
             const auto& point_0 = *index_to_origin_point[indices[ic]].first;
@@ -2537,7 +2538,8 @@ void Clipping::triangleFromOutline(const std::vector<ClippingLoop*>& outline, st
         const std::vector<unsigned int>& indices = mapbox::earcut<unsigned int>(polygons);
 
         std::map<int, int> index_to_tria_index;
-        const Point3f      fill_normal = plane_info.m_plane.normal();
+        /// トリア法線方向が平面法線と逆なので、断面法線は平面法線を反転する
+        const Point3f      fill_normal = -plane_info.m_plane.normal();
 
         for (int ic = 0; ic < (int)indices.size(); ic += 3) {
             const auto& point_0 = *index_to_origin_point[indices[ic]].first;
