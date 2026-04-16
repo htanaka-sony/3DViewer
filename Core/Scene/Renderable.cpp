@@ -1,5 +1,6 @@
 #include "Renderable.h"
 #include "RenderMesh.h"
+#include "RenderNormalMesh.h"
 
 CORE_NAMESPACE_BEGIN
 
@@ -11,6 +12,8 @@ RefPtr<RenderableNode> RenderableNode::createRenderableNode(RenderableObject* re
     switch (renderable->type()) {
         case RenderableType::RenderMesh:
             return RenderEditableMesh::createRenderable((RenderMesh*)renderable);
+        case RenderableType::RenderNormalMesh:
+            return RenderEditableNormalMesh::createRenderable((RenderNormalMesh*)renderable);
     }
 
     return nullptr;

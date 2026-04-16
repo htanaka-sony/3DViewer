@@ -1,4 +1,6 @@
 #include "Picking.h"
+#include "Scene/RenderMesh.h"
+#include "Scene/RenderNormalMesh.h"
 #include "Scene/Voxel.h"
 
 CORE_NAMESPACE_BEGIN

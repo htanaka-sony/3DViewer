@@ -77,6 +77,10 @@ add_library(${PROJECT_NAME} SHARED
     Scene/Renderable.cpp
     Scene/Mesh.h
     Scene/Mesh.cpp
+    Scene/RenderNormalMesh.h
+    Scene/RenderNormalMesh.cpp
+    Scene/NormalMesh.h
+    Scene/NormalMesh.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

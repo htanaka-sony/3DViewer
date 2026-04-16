@@ -7,6 +7,7 @@
 #include "Scene/Mesh.h"
 #include "Scene/MultiDimension.h"
 #include "Scene/RenderMesh.h"
+#include "Scene/RenderNormalMesh.h"
 #include "Scene/SceneGraph.h"
 #include "Scene/Voxel.h"
 #include "Scene/VoxelScalar.h"
@@ -1416,6 +1417,9 @@ void GLSceneRender::createRenderableData(RenderableNode* renderable)
         case RenderableType::RenderEditableMesh:
             createRenderEditableMeshData((RenderEditableMesh*)renderable);
             break;
+        case RenderableType::RenderEditableNormalMesh:
+            createRenderEditableNormalMeshData((RenderEditableNormalMesh*)renderable);
+            break;
     }
 }
 
@@ -1564,6 +1568,154 @@ void GLSceneRender::createRenderEditableMeshData(RenderEditableMesh* mesh)
         f->glEnableVertexAttribArray(1);
         f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
         f->glVertexAttribDivisor(1, 1);
+    }
+
+    m_gl_widget->doneCurrent();
+}
+
+void GLSceneRender::createRenderEditableNormalMeshData(RenderEditableNormalMesh* mesh)
+{
+    // DEBUG() << "createRenderVoxelData";
+
+    Renderable* target_mesh = mesh->isEnableEditDisplayData() ? (Renderable*)mesh : (Renderable*)mesh->originalMesh();
+    if (!target_mesh) {
+        return;
+    }
+
+    if (!target_mesh->isRenderDirty()) {
+        return;
+    }
+
+    /// 編集する場合、インスタンス共有なければ元データ破棄してしまう(二重もちになるので）
+    if (mesh->isEnableEditDisplayData()) {
+        auto origin_mesh = mesh->originalMesh();
+        if (origin_mesh && origin_mesh->useCount() == 0) {    /// ObjectとRenderEditableMeshの2つ
+            origin_mesh->deleteRenderData(true);
+        }
+    }
+
+    target_mesh->resetRenderDirty();
+
+    const auto& vertices = mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+    const auto& indices  = mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
+
+    if (indices.size() == 0) {
+        return;
+    }
+
+    m_gl_widget->makeCurrent();
+
+    /// 初回
+    RenderData* render_data = (RenderData*)target_mesh->renderData();
+    if (!render_data) {
+        render_data = new RenderData(m_gl_widget);
+        render_data->m_vao.create();
+        render_data->m_vbo.create();
+        render_data->m_ibo.create();
+        target_mesh->setRenderData(render_data, [](void* ptr, bool direct_delete) {
+            if (direct_delete) {
+                delete static_cast<RenderData*>(ptr);
+            }
+            else {
+                /// m_gl_widgetのスレッド（メインスレッド）で削除
+                QMetaObject::invokeMethod(
+                    static_cast<RenderData*>(ptr)->m_gl_widget, [ptr]() { delete static_cast<RenderData*>(ptr); },
+                    Qt::QueuedConnection);
+            }
+        });
+    }
+
+    render_data->m_use_vbo = false;
+
+    if (mesh->isVboUse()) {
+        render_data->m_vao.bind();
+
+        if (render_data->m_vbo.isCreated()) {
+            render_data->m_vbo.bind();
+            int vertex_size = (int)vertices.size() * sizeof(Vertexf);
+            if (vertex_size > render_data->m_vbo.size()) {
+                render_data->m_vbo.allocate((int)((double)vertex_size * 1.2));
+            }
+            render_data->m_vbo.write(0, vertices.data(), vertex_size);
+
+            if (render_data->m_ibo.create()) {
+                render_data->m_ibo.bind();
+#if 0
+            int indices_size = (int)indices.size() * sizeof(GLuint);
+            if (indices_size > render_data->m_ibo.size()) {
+                render_data->m_ibo.allocate((int)((double)(indices_size) * 1.2));
+            }
+            render_data->m_ibo.write(0, indices.data(), indices_size);
+#else
+                /// Edge表示
+                const auto& seg_indices =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
+                if (seg_indices.size() > 0) {
+                    int indices_size     = (int)indices.size() * sizeof(GLuint);
+                    int seg_indices_size = (int)seg_indices.size() * sizeof(GLuint);
+                    if (indices_size + seg_indices_size > render_data->m_ibo.size()) {
+                        render_data->m_ibo.allocate((int)((double)(indices_size + seg_indices_size) * 1.2));
+                    }
+                    render_data->m_ibo.write(0, indices.data(), indices_size);
+                    render_data->m_ibo.write(indices_size, seg_indices.data(), seg_indices_size);
+                }
+                else {
+                    int indices_size = (int)indices.size() * sizeof(GLuint);
+                    if (indices_size > render_data->m_ibo.size()) {
+                        render_data->m_ibo.allocate((int)((double)(indices_size) * 1.2));
+                    }
+                    render_data->m_ibo.write(0, indices.data(), indices_size);
+                }
+#endif
+                render_data->m_use_vbo = true;
+            }
+        }
+
+        if (render_data->m_use_vbo) {
+            /// 作成中エラーーならこうなる？要確認
+            if (!render_data->m_vao.isCreated()       //
+                || !render_data->m_vbo.isCreated()    //
+                || !render_data->m_ibo.isCreated()) {
+                DEBUG() << "createRenderVoxelData VBO not created";
+                render_data->m_use_vbo = false;
+            }
+        }
+
+        if (!render_data->m_use_vbo) {
+            render_data->m_vbo.release();
+            render_data->m_ibo.release();
+            render_data->m_vao.release();
+        }
+    }
+
+    // DEBUG() << "createRenderVoxelData Allocated";
+
+    QOpenGLExtraFunctions* f = QOpenGLContext::currentContext()->extraFunctions();
+
+    if (render_data->m_use_vbo) {
+        /// 位置属性の設定
+        f->glEnableVertexAttribArray(0);
+        f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertexf), (void*)offsetof(Vertexf, m_position));
+
+        /// 法線属性の設定
+        f->glEnableVertexAttribArray(1);
+        f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertexf), (void*)offsetof(Vertexf, m_normal));
+
+        render_data->m_vao.release();
+        render_data->m_vbo.release();
+        render_data->m_ibo.release();
+    }
+    else {
+        m_gl_function->glBindBuffer(GL_ARRAY_BUFFER, 0);
+        m_gl_function->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+        /// 位置属性の設定
+        f->glEnableVertexAttribArray(0);
+        f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertexf), (void*)offsetof(Vertexf, m_position));
+
+        /// 法線属性の設定
+        f->glEnableVertexAttribArray(1);
+        f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertexf), (void*)offsetof(Vertexf, m_normal));
     }
 
     m_gl_widget->doneCurrent();
@@ -2413,19 +2565,6 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
         m_cur_shader_program->setUniformValue("objectIDColor", object_id_color);
     }
 
-    // 関数内関数（ラムダ式）
-    auto getMaxDepth = [=](float fov) -> float {
-        float baseFovRad = M_PI / 4.0f;    // 45度
-        float base_depth = 0.999995f;      // 45度での値
-
-        float maxDepth = (base_depth - 1.0f) / baseFovRad * fov + 1.0f;
-
-        if (maxDepth > 0.999999f) maxDepth = 0.999999f;
-        if (maxDepth < 0.99999f) maxDepth = 0.99999f;
-
-        return maxDepth;
-    };
-
     if (render_data->m_use_vbo) {
         render_data->m_vao.bind();
 
@@ -2929,6 +3068,666 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                 for (int ic = start_index; ic < end_index; ic += 2) {
                     const auto&   seg_point_0 = vertices[seg_indices[ic]];
                     const auto&   seg_point_1 = vertices[seg_indices[ic + 1]];
+                    BoundingBox3f seg_box(seg_point_0, seg_point_1);
+                    if (!frustum.isBoxInFrustum(seg_box)) {
+                        continue;
+                    }
+
+                    if (m_cond_snap & PickSnap::SnapVertex) {
+                        if (m_scene_view->isPointInFrustum(seg_point_0, matrix)) {
+                            int object_id = m_stack_pick_objects.size();
+
+                            auto pick_vertex = PickVertex::createObject();
+                            pick_vertex->setVertex(seg_point_0);
+                            m_stack_pick_objects.emplace_back(node, object, pick_vertex.ptr());
+
+                            Point3f object_id_color((object_id & 0xFF) / 255.0f,           // R成分
+                                                    ((object_id >> 8) & 0xFF) / 255.0f,    // G成分
+                                                    ((object_id >> 16) & 0xFF) / 255.0f    // B成分
+                            );
+
+                            m_cur_shader_program->setUniformValue("objectIDColor", object_id_color);
+
+                            glPointSize((float)m_pick_pixel);
+                            glBegin(GL_POINTS);
+                            glVertex3f(seg_point_0.x(), seg_point_0.y(), seg_point_0.z());
+                            glEnd();
+                        }
+                        if (m_scene_view->isPointInFrustum(seg_point_1, matrix)) {
+                            int object_id = m_stack_pick_objects.size();
+
+                            auto pick_vertex = PickVertex::createObject();
+                            pick_vertex->setVertex(seg_point_1);
+                            m_stack_pick_objects.emplace_back(node, object, pick_vertex.ptr());
+
+                            Point3f object_id_color((object_id & 0xFF) / 255.0f,           // R成分
+                                                    ((object_id >> 8) & 0xFF) / 255.0f,    // G成分
+                                                    ((object_id >> 16) & 0xFF) / 255.0f    // B成分
+                            );
+
+                            m_cur_shader_program->setUniformValue("objectIDColor", object_id_color);
+
+                            glPointSize((float)m_pick_pixel);
+                            glBegin(GL_POINTS);
+                            glVertex3f(seg_point_1.x(), seg_point_1.y(), seg_point_1.z());
+                            glEnd();
+                        }
+                    }
+
+                    int object_id = m_stack_pick_objects.size();
+
+                    auto pick_edge = PickEdge::createObject();
+                    pick_edge->setStartVertex(seg_point_0);
+                    pick_edge->setEndVertex(seg_point_1);
+                    m_stack_pick_objects.emplace_back(node, object, pick_edge.ptr());
+
+                    Point3f object_id_color((object_id & 0xFF) / 255.0f,           // R成分
+                                            ((object_id >> 8) & 0xFF) / 255.0f,    // G成分
+                                            ((object_id >> 16) & 0xFF) / 255.0f    // B成分
+                    );
+
+                    m_cur_shader_program->setUniformValue("objectIDColor", object_id_color);
+
+                    glLineWidth(2 * m_dpi_scale);
+                    glBegin(GL_LINES);
+                    glVertex3f(seg_point_0.x(), seg_point_0.y(), seg_point_0.z());
+                    glVertex3f(seg_point_1.x(), seg_point_1.y(), seg_point_1.z());
+                    glEnd();
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+/// 暫定 ：コピペで書き換え
+bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalMesh* mesh, Object* object)
+{
+    /// Text描画なし
+    if (m_cond_text_render) {
+        return true;
+    }
+    if (m_cond_drag) {
+        return true;
+    }
+
+    RenderData* render_data = (RenderData*)mesh->renderData();
+    if (!render_data) {
+        return true;
+    }
+
+    const auto& vertices = mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+    const auto& indices  = mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
+    if (vertices.empty() || indices.empty()) {
+        return true;
+    }
+
+    int draw_priority = mesh->drawPriority();
+
+    if (!m_cond_transparent && !m_cond_pick_render) {
+        if (mesh->transparent() != 1.0f) {
+            /// 暫定
+            Point3f     camera_dir      = m_scene_view->cameraDir();
+            Point3f     camera_eye      = m_scene_view->cameraEye();
+            const auto& cur_path_matrix = curPathMatrix();
+
+            float min_depth   = -FLT_MAX;
+            int   numVertices = vertices.size();
+            int   step        = numVertices / 1000;
+            if (step <= 0) step = 1;
+            if (cur_path_matrix.isIdentity()) {
+                for (int ic = 0; ic < numVertices; ic += step) {
+                    float depth = camera_dir * (vertices[ic].m_position - camera_eye);
+                    if (depth > min_depth) {
+                        min_depth = depth;
+                    }
+                }
+            }
+            else {
+                for (int ic = 0; ic < numVertices; ic += step) {
+                    float depth = camera_dir * (cur_path_matrix * vertices[ic].m_position - camera_eye);
+                    if (depth > min_depth) {
+                        min_depth = depth;
+                    }
+                }
+            }
+
+            m_stack_transparent_objects.emplace_back(node, object, curPathMatrix(), min_depth, draw_priority);
+            return true;
+        }
+    }
+
+    const bool voxel_draw_shading   = mesh->isDrawShading();
+    const bool voxel_draw_wireframe = mesh->isDrawWireframe();
+
+    if (m_cond_pick_render) {
+        /// ワイヤーフレームのときピック除外する場合
+        if (m_pick_wireframe_invalid) {
+            if (!voxel_draw_shading) {    /// シェーディング表示なければ
+                return true;
+            }
+            else if (mesh->transparent() != 1.0f) {    /// 透明も除外
+                return true;
+            }
+        }
+
+        int object_id = m_stack_pick_objects.size();
+        m_stack_pick_objects.emplace_back(node, object);
+
+        Point3f object_id_color((object_id & 0xFF) / 255.0f,           // R成分
+                                ((object_id >> 8) & 0xFF) / 255.0f,    // G成分
+                                ((object_id >> 16) & 0xFF) / 255.0f    // B成分
+        );
+
+        m_cur_shader_program->setUniformValue("objectIDColor", object_id_color);
+    }
+
+    if (render_data->m_use_vbo) {
+        render_data->m_vao.bind();
+
+        /// 透明でないときは先
+        if (!m_cond_transparent) {
+            /// 暫定 - 法線データ削除による高速化で、シェーダーがかなりぐちゃぐちゃ。。。整理したい
+            auto current_shader = m_cur_shader_program;
+            if (!m_cond_pick_render) {
+                /// NormalMeshは面描画のシェーダーの置き換え不要（基本のシェーダーでいい）
+                // current_shader->release();
+                // m_cur_shader_program = m_paint_shader_no_norms_program;
+                // m_cur_shader_program->bind();
+                // applyMatrix();
+            }
+
+            if (draw_priority != 0) {
+                m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
+                float offset_value   = -0.0001f * (float)draw_priority;
+                float polygon_offset = -0.05f * (float)draw_priority;
+                m_cur_shader_program->setUniformValue("direct_offset", true);
+                m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
+                m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+            }
+
+            /// Shading表示のとき または ピック描画のとき
+            if (voxel_draw_shading || m_cond_pick_render) {
+                int texture_draw = -1;
+                if (!m_cond_pick_render) {
+                    const Point4f& color = mesh->color();
+                    m_cur_shader_program->setUniformValue("color", color[0], color[1], color[2]);
+
+                    /// テクスチャ描画の場合
+                    if (auto project_node = mesh->projectionNode()) {
+                        texture_draw = set3DTextureShader(project_node->object<VoxelScalar>());
+                    }
+
+                    m_cur_shader_program->setUniformValue("transparency", color[3]);
+                }
+                m_gl_function->glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
+
+                if (texture_draw >= 0) {
+                    reset3DTextureShader(texture_draw);
+                }
+            }
+            /// Wireフレーム表示のみで、3D結果投影がある場合
+            else if (!voxel_draw_shading && voxel_draw_wireframe && !m_cond_pick_render) {
+                if (auto project_node = mesh->projectionNode()) {
+                    auto texture_draw = set3DTextureShader(project_node->object<VoxelScalar>());
+                    m_cur_shader_program->setUniformValue("discard_out_range", true);
+                    m_gl_function->glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
+                    m_cur_shader_program->setUniformValue("discard_out_range", false);
+                    reset3DTextureShader(texture_draw);
+                }
+            }
+
+            if (draw_priority != 0) {
+                m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
+                m_cur_shader_program->setUniformValue("direct_offset", false);
+                m_cur_shader_program->setUniformValue("direct_offset_value", 0.0f);
+            }
+
+            if (current_shader != m_cur_shader_program) {
+                m_cur_shader_program->release();
+                m_cur_shader_program = current_shader;
+                m_cur_shader_program->bind();
+            }
+        }
+
+        /// 暫定 - 色が黒で、シェーディングとワイヤー同時、透明でないとき、ワイヤー描画しない
+        bool no_draw_wire = false;
+        if (!m_cond_transparent) {
+            const Point4f& color = mesh->color();
+            if (voxel_draw_wireframe && voxel_draw_shading
+                && (color[0] == 0.0f && color[1] == 0.0f && color[2] == 0.0f)) {
+                no_draw_wire = true;
+            }
+        }
+
+        /// Wireframe表示のとき かつ ピック描画ではないとき
+        if (voxel_draw_wireframe && !m_cond_pick_render && !no_draw_wire) {
+            const auto& seg_indices =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
+            if (seg_indices.size() > 0) {
+                auto current_shader = m_cur_shader_program;
+                if (!m_cond_pick_render) {
+                    current_shader->release();
+                    m_cur_shader_program = m_paint_segment_program;
+                    m_cur_shader_program->bind();
+                    applyMatrix();
+                }
+
+                bool gl_multisample_enabled = glIsEnabled(GL_MULTISAMPLE) ? true : false;
+                bool gl_line_smooth_enabled = glIsEnabled(GL_LINE_SMOOTH) ? true : false;
+                if (m_line_smooth) {
+                    if (!gl_line_smooth_enabled) {
+                        glEnable(GL_LINE_SMOOTH);
+                    }
+                    if (!gl_multisample_enabled) {
+                        glEnable(GL_MULTISAMPLE);
+                    }
+                }
+                else {
+                    if (gl_line_smooth_enabled) {
+                        glDisable(GL_LINE_SMOOTH);
+                    }
+                    if (gl_multisample_enabled) {
+                        glDisable(GL_MULTISAMPLE);
+                    }
+                }
+
+                glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
+
+                m_cur_shader_program->setUniformValue("line_offset_value_front", -0.0002f);
+                m_cur_shader_program->setUniformValue("line_offset_value_back", -0.0002f);
+
+                if (m_voxel_draw_wireframe_color_shape) {
+                    /// 形状色
+                    const Point4f& color = mesh->color();
+                    m_cur_shader_program->setUniformValue("color", color[0], color[1], color[2]);
+                }
+                else {
+                    /// 指定色
+                    m_cur_shader_program->setUniformValue("color", m_voxel_draw_wireframe_color[0],
+                                                          m_voxel_draw_wireframe_color[1],
+                                                          m_voxel_draw_wireframe_color[2]);
+                }
+
+                m_cur_shader_program->setUniformValue("transparency", 1.0f);
+                m_cur_shader_program->setUniformValue("disable_light", true);
+                m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT,
+                                              (void*)(indices.size() * sizeof(GLuint)));
+                m_cur_shader_program->setUniformValue("disable_light", false);
+
+                if (m_line_smooth) {
+                    if (!gl_line_smooth_enabled) {
+                        glDisable(GL_LINE_SMOOTH);
+                    }
+                    if (!gl_multisample_enabled) {
+                        glDisable(GL_MULTISAMPLE);
+                    }
+                }
+                else {
+                    if (gl_line_smooth_enabled) {
+                        glEnable(GL_LINE_SMOOTH);
+                    }
+                    if (gl_multisample_enabled) {
+                        glEnable(GL_MULTISAMPLE);
+                    }
+                }
+
+                if (current_shader != m_cur_shader_program) {
+                    m_cur_shader_program->release();
+                    m_cur_shader_program = current_shader;
+                    m_cur_shader_program->bind();
+                }
+            }
+        }
+
+        /// 透明のときは後
+        if (m_cond_transparent) {
+            /// 暫定 - 法線データ削除による高速化で、シェーダーがかなりぐちゃぐちゃ。。。整理したい
+            auto current_shader = m_cur_shader_program;
+            if (!m_cond_pick_render) {
+                /// NormalMeshは面描画のシェーダーの置き換え不要（基本のシェーダーでいい）
+                // current_shader->release();
+                // m_cur_shader_program = m_paint_shader_no_norms_program;
+                // m_cur_shader_program->bind();
+                // applyMatrix();
+            }
+
+            /// Shading表示のとき または ピック描画のとき
+            if (voxel_draw_shading || m_cond_pick_render) {
+                int texture_draw = -1;
+                if (!m_cond_pick_render) {
+                    const Point4f& color = mesh->color();
+                    m_cur_shader_program->setUniformValue("color", color[0], color[1], color[2]);
+
+                    /// テクスチャ描画の場合
+                    if (auto project_node = mesh->projectionNode()) {
+                        texture_draw = set3DTextureShader(project_node->object<VoxelScalar>());
+                    }
+
+                    m_cur_shader_program->setUniformValue("transparency", color[3]);
+                }
+                m_gl_function->glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
+
+                if (texture_draw >= 0) {
+                    reset3DTextureShader(texture_draw);
+                }
+            }
+            /// Wireフレーム表示のみで、3D結果投影がある場合
+            else if (!voxel_draw_shading && voxel_draw_wireframe && !m_cond_pick_render) {
+                if (auto project_node = mesh->projectionNode()) {
+                    auto           texture_draw = set3DTextureShader(project_node->object<VoxelScalar>());
+                    const Point4f& color        = mesh->color();
+                    m_cur_shader_program->setUniformValue("transparency", color[3]);
+                    m_cur_shader_program->setUniformValue("discard_out_range", true);
+                    m_gl_function->glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
+                    m_cur_shader_program->setUniformValue("discard_out_range", false);
+                    reset3DTextureShader(texture_draw);
+                }
+            }
+
+            if (current_shader != m_cur_shader_program) {
+                m_cur_shader_program->release();
+                m_cur_shader_program = current_shader;
+                m_cur_shader_program->bind();
+            }
+        }
+
+        render_data->m_vao.release();
+    }
+    else {
+        /// 透明でないときは先
+        if (!m_cond_transparent) {
+            /// 暫定 - 法線データ削除による高速化で、シェーダーがかなりぐちゃぐちゃ。。。整理したい
+            auto current_shader = m_cur_shader_program;
+            if (!m_cond_pick_render) {
+                /// NormalMeshは面描画のシェーダーの置き換え不要（基本のシェーダーでいい）
+                // current_shader->release();
+                // m_cur_shader_program = m_paint_shader_no_norms_program;
+                // m_cur_shader_program->bind();
+                // applyMatrix();
+            }
+            m_cur_shader_program->enableAttributeArray(0);
+            m_cur_shader_program->setAttributeArray(0, GL_FLOAT, &vertices[0].m_position, 3, sizeof(Vertexf));
+            m_cur_shader_program->enableAttributeArray(1);
+            m_cur_shader_program->setAttributeArray(1, GL_FLOAT, &vertices[0].m_normal, 3, sizeof(Vertexf));
+
+            if (draw_priority != 0) {
+                m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
+                float offset_value   = -0.0001f * (float)draw_priority;
+                float polygon_offset = -0.05f * (float)draw_priority;
+                m_cur_shader_program->setUniformValue("direct_offset", true);
+                m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
+                m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+            }
+
+            /// Shading表示のとき または ピック描画のとき
+            if (voxel_draw_shading || m_cond_pick_render) {
+                int texture_draw = -1;
+                if (!m_cond_pick_render) {
+                    const Point4f& color = mesh->color();
+                    m_cur_shader_program->setUniformValue("color", color[0], color[1], color[2]);
+
+                    /// テクスチャ描画の場合
+                    if (auto project_node = mesh->projectionNode()) {
+                        texture_draw = set3DTextureShader(project_node->object<VoxelScalar>());
+                    }
+
+                    m_cur_shader_program->setUniformValue("transparency", color[3]);
+                }
+                m_gl_function->glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+
+                if (texture_draw >= 0) {
+                    reset3DTextureShader(texture_draw);
+                }
+            }
+            /// Wireフレーム表示のみで、3D結果投影がある場合
+            else if (!voxel_draw_shading && voxel_draw_wireframe && !m_cond_pick_render) {
+                if (auto project_node = mesh->projectionNode()) {
+                    auto texture_draw = set3DTextureShader(project_node->object<VoxelScalar>());
+                    m_cur_shader_program->setUniformValue("discard_out_range", true);
+                    m_gl_function->glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+                    m_cur_shader_program->setUniformValue("discard_out_range", false);
+                    reset3DTextureShader(texture_draw);
+                }
+            }
+
+            m_cur_shader_program->disableAttributeArray(0);
+            m_cur_shader_program->disableAttributeArray(1);
+
+            if (draw_priority != 0) {
+                m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
+                m_cur_shader_program->setUniformValue("direct_offset", false);
+                m_cur_shader_program->setUniformValue("direct_offset_value", 0.0f);
+            }
+
+            if (current_shader != m_cur_shader_program) {
+                m_cur_shader_program->release();
+                m_cur_shader_program = current_shader;
+                m_cur_shader_program->bind();
+            }
+        }
+
+        /// 暫定 - 色が黒で、シェーディングとワイヤー同時、透明でないとき、ワイヤー描画しない
+        bool no_draw_wire = false;
+        if (!m_cond_transparent) {
+            const Point4f& color = mesh->color();
+            if (voxel_draw_wireframe && voxel_draw_shading
+                && (color[0] == 0.0f && color[1] == 0.0f && color[2] == 0.0f)) {
+                no_draw_wire = true;
+            }
+        }
+
+        /// Wireframe表示のとき かつ ピック描画ではないとき
+        if (voxel_draw_wireframe && !m_cond_pick_render && !no_draw_wire) {
+            /// Edge表示
+            const auto& seg_indices =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
+            if (seg_indices.size() > 0) {
+                auto current_shader = m_cur_shader_program;
+                if (!m_cond_pick_render) {
+                    current_shader->release();
+                    m_cur_shader_program = m_paint_segment_program;
+                    m_cur_shader_program->bind();
+                    applyMatrix();
+                }
+                m_cur_shader_program->enableAttributeArray(0);
+                m_cur_shader_program->setAttributeArray(0, GL_FLOAT, &vertices[0].m_position, 3, sizeof(Vertexf));
+                m_cur_shader_program->enableAttributeArray(1);
+                m_cur_shader_program->setAttributeArray(1, GL_FLOAT, &vertices[0].m_normal, 3, sizeof(Vertexf));
+
+                m_cur_shader_program->setUniformValue("line_offset_value_front", -0.0002f);
+                m_cur_shader_program->setUniformValue("line_offset_value_back", -0.0002f);
+
+                bool gl_multisample_enabled = glIsEnabled(GL_MULTISAMPLE) ? true : false;
+                bool gl_line_smooth_enabled = glIsEnabled(GL_LINE_SMOOTH) ? true : false;
+                if (m_line_smooth) {
+                    if (!gl_line_smooth_enabled) {
+                        glEnable(GL_LINE_SMOOTH);
+                    }
+                    if (!gl_multisample_enabled) {
+                        glEnable(GL_MULTISAMPLE);
+                    }
+                }
+                else {
+                    if (gl_line_smooth_enabled) {
+                        glDisable(GL_LINE_SMOOTH);
+                    }
+                    if (gl_multisample_enabled) {
+                        glDisable(GL_MULTISAMPLE);
+                    }
+                }
+                glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
+
+                if (m_voxel_draw_wireframe_color_shape) {
+                    /// 形状色
+                    const Point4f& color = mesh->color();
+                    m_cur_shader_program->setUniformValue("color", color[0], color[1], color[2]);
+                }
+                else {
+                    /// 指定色
+                    m_cur_shader_program->setUniformValue("color", m_voxel_draw_wireframe_color[0],
+                                                          m_voxel_draw_wireframe_color[1],
+                                                          m_voxel_draw_wireframe_color[2]);
+                }
+
+                m_cur_shader_program->setUniformValue("transparency", 1.0f);
+                m_cur_shader_program->setUniformValue("disable_light", true);
+                m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT, seg_indices.data());
+                m_cur_shader_program->setUniformValue("disable_light", false);
+
+                m_cur_shader_program->disableAttributeArray(0);
+                m_cur_shader_program->disableAttributeArray(1);
+
+                if (m_line_smooth) {
+                    if (!gl_line_smooth_enabled) {
+                        glDisable(GL_LINE_SMOOTH);
+                    }
+                    if (!gl_multisample_enabled) {
+                        glDisable(GL_MULTISAMPLE);
+                    }
+                }
+                else {
+                    if (gl_line_smooth_enabled) {
+                        glEnable(GL_LINE_SMOOTH);
+                    }
+                    if (gl_multisample_enabled) {
+                        glEnable(GL_MULTISAMPLE);
+                    }
+                }
+
+                if (current_shader != m_cur_shader_program) {
+                    m_cur_shader_program->release();
+                    m_cur_shader_program = current_shader;
+                    m_cur_shader_program->bind();
+                }
+            }
+        }
+
+        /// 透明のときは後
+        if (m_cond_transparent) {
+            /// 暫定 - 法線データ削除による高速化で、シェーダーがかなりぐちゃぐちゃ。。。整理したい
+            auto current_shader = m_cur_shader_program;
+            if (!m_cond_pick_render) {
+                /// NormalMeshは面描画のシェーダーの置き換え不要（基本のシェーダーでいい）
+                // current_shader->release();
+                // m_cur_shader_program = m_paint_shader_no_norms_program;
+                // m_cur_shader_program->bind();
+                // applyMatrix();
+            }
+
+            m_cur_shader_program->enableAttributeArray(0);
+            m_cur_shader_program->setAttributeArray(0, GL_FLOAT, &vertices[0].m_position, 3, sizeof(Vertexf));
+            m_cur_shader_program->enableAttributeArray(1);
+            m_cur_shader_program->setAttributeArray(1, GL_FLOAT, &vertices[0].m_normal, 3, sizeof(Vertexf));
+
+            /// Shading表示のとき または ピック描画のとき
+            if (voxel_draw_shading || m_cond_pick_render) {
+                int texture_draw = -1;
+                if (!m_cond_pick_render) {
+                    const Point4f& color = mesh->color();
+                    m_cur_shader_program->setUniformValue("color", color[0], color[1], color[2]);
+
+                    /// テクスチャ描画の場合
+                    if (auto project_node = mesh->projectionNode()) {
+                        texture_draw = set3DTextureShader(project_node->object<VoxelScalar>());
+                    }
+
+                    m_cur_shader_program->setUniformValue("transparency", color[3]);
+                }
+                m_gl_function->glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+
+                if (texture_draw >= 0) {
+                    reset3DTextureShader(texture_draw);
+                }
+            }
+            /// Wireフレーム表示のみで、3D結果投影がある場合
+            else if (!voxel_draw_shading && voxel_draw_wireframe && !m_cond_pick_render) {
+                if (auto project_node = mesh->projectionNode()) {
+                    auto           texture_draw = set3DTextureShader(project_node->object<VoxelScalar>());
+                    const Point4f& color        = mesh->color();
+                    m_cur_shader_program->setUniformValue("transparency", color[3]);
+                    m_cur_shader_program->setUniformValue("discard_out_range", true);
+                    m_gl_function->glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+                    m_cur_shader_program->setUniformValue("discard_out_range", false);
+                    reset3DTextureShader(texture_draw);
+                }
+            }
+
+            m_cur_shader_program->disableAttributeArray(0);
+            m_cur_shader_program->disableAttributeArray(1);
+
+            if (current_shader != m_cur_shader_program) {
+                m_cur_shader_program->release();
+                m_cur_shader_program = current_shader;
+                m_cur_shader_program->bind();
+            }
+        }
+    }
+
+    if (m_cond_pick_render) {
+        /* /// 遅いので線分データ（グループのボックス判定）を通す
+        if (m_cond_snap & PickSnap::SnapVertex) {
+            const Matrix4x4f& matrix = curPathMatrix();
+
+            for (const auto& vertex : vertices) {
+                if (m_scene_view->isPointInFrustum(vertex.m_position, matrix)) {
+                    int object_id = m_stack_pick_objects.size();
+
+                    auto pick_vertex = PickVertex::createObject();
+                    pick_vertex->setVertex(vertex);
+                    m_stack_pick_objects.emplace_back(node, voxel, pick_vertex.ptr());
+
+                    Point3f object_id_color((object_id & 0xFF) / 255.0f,           // R成分
+                                            ((object_id >> 8) & 0xFF) / 255.0f,    // G成分
+                                            ((object_id >> 16) & 0xFF) / 255.0f    // B成分
+                    );
+
+                    m_cur_shader_program->setUniformValue("objectIDColor", object_id_color);
+
+                    glPointSize((float)m_pick_pixel * m_dpi_scale);
+                    glBegin(GL_POINTS);
+                    glVertex3f(vertex.m_position.x(), vertex.m_position.y(), vertex.m_position.z());
+                    glEnd();
+                }
+            }
+        }
+        */
+        if (m_cond_snap & PickSnap::SnapEdge || m_cond_snap & PickSnap::SnapVertex) {
+            const Matrix4x4f& matrix = curPathMatrix();
+
+            /// 元々線分が多かったのでグループ分けしていたが、だいぶ減りはした（重複をすべて消した）。とりあえずこの仕組みは残しておく
+            mesh->createDisplaySegmentsGroupData();
+            const auto& seg_indices =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditSegmentIndices() : mesh->displaySegmentIndices();
+
+            const Matrix4x4f inv_matrix = matrix.inverted();
+
+            auto frustum = m_scene_view->frustum();
+            frustum.preMulti(inv_matrix);
+
+            // int         group_num   = voxel->displaySegmentsGroupCount();
+            const auto& group_boxes = mesh->displaySegmentsGroupBox();
+            const auto& group_start = mesh->displaySegmentsGroupStart();
+
+            for (int group_index = 0; group_index < group_start.size(); ++group_index) {
+                if (!frustum.isBoxInFrustum(group_boxes[group_index])) {
+                    continue;
+                }
+
+                int start_index = group_start[group_index];
+                int end_index;
+                if (group_index < group_start.size() - 1) {
+                    end_index = group_start[group_index + 1];
+                }
+                else {
+                    end_index = seg_indices.size();
+                }
+
+                // グループ内のセグメントを処理
+                for (int ic = start_index; ic < end_index; ic += 2) {
+                    const auto&   seg_point_0 = vertices[seg_indices[ic]].m_position;
+                    const auto&   seg_point_1 = vertices[seg_indices[ic + 1]].m_position;
                     BoundingBox3f seg_box(seg_point_0, seg_point_1);
                     if (!frustum.isBoxInFrustum(seg_box)) {
                         continue;

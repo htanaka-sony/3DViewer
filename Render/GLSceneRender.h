@@ -24,6 +24,7 @@ class VoxelScalar;
 class Dimension;
 class MultiDimension;
 class RenderEditableMesh;
+class RenderEditableNormalMesh;
 }    // namespace Core
 using namespace Core;
 
@@ -107,6 +108,7 @@ public:
     void createRenderData(Node* node);
     void createRenderableData(RenderableNode* renderable);
     void createRenderEditableMeshData(RenderEditableMesh* mesh);
+    void createRenderEditableNormalMeshData(RenderEditableNormalMesh* mesh);
 
     void suppressRender(bool suppress);
     bool isSuppressRender() { return m_suppress_render; }
@@ -242,6 +244,7 @@ protected:
     bool renderMultiDimension(Node* node, MultiDimension* dimension);
 
     bool renderRenderableMesh(Node* node, RenderEditableMesh* mesh, Object* object);
+    bool renderRenderableNormalMesh(Node* node, RenderEditableNormalMesh* mesh, Object* object);
 
     void drawCoordinateSystem();
 

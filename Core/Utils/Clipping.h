@@ -8,6 +8,8 @@
 #include "Math/PolyLoop2f.h"
 #include "Math/SearchPerform.h"
 #include "Scene/Node.h"
+#include "Scene/RenderMesh.h"
+#include "Scene/RenderNormalMesh.h"
 #include "Scene/SceneGraph.h"
 #include "Scene/Voxel.h"
 
