@@ -25,33 +25,37 @@ RenderNormalMesh::RenderNormalMesh(const RenderNormalMesh& other)
 void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ,
                                       float tol)
 {
-    /*
     m_vertices.clear();
     m_indices.clear();
     m_segments_indices.clear();
+
     /// geom_sphereOctant_type1 と同じロジック: ratioMax で正規化した各軸の丸め半径
-    const float   ratioMax = std::max({ratioX, ratioY, ratioZ});
-    float         rx       = radius * ratioX / ratioMax;
-    float         ry       = radius * ratioY / ratioMax;
-    float         rz       = radius * ratioZ / ratioMax;
-    const Point3f mn       = box.min_pos();
-    const Point3f mx       = box.max_pos();
-    const float   W        = mx.x() - mn.x();
-    const float   H        = mx.y() - mn.y();
-    const float   D        = mx.z() - mn.z();
+    const float ratioMax = std::max({ratioX, ratioY, ratioZ});
+    float       rx       = radius * ratioX / ratioMax;
+    float       ry       = radius * ratioY / ratioMax;
+    float       rz       = radius * ratioZ / ratioMax;
+
+    const Point3f mn = box.min_pos();
+    const Point3f mx = box.max_pos();
+    const float   W  = mx.x() - mn.x();
+    const float   H  = mx.y() - mn.y();
+    const float   D  = mx.z() - mn.z();
+
     /// 丸め半径をボックス半分でクランプ
     rx             = std::min(rx, W * 0.5f);
     ry             = std::min(ry, H * 0.5f);
     rz             = std::min(rz, D * 0.5f);
     const float x0 = mn.x(), y0 = mn.y(), z0 = mn.z();
-    /// 4頂点のquadを追加（外向き法線になるよう頂点順を指定）
+
+    /// 各頂点に個別の法線を設定してquadを追加
     /// Triangle1: p0,p1,p2  Triangle2: p2,p3,p0
-    auto addQuad = [&](const Point3f& p0, const Point3f& p1, const Point3f& p2, const Point3f& p3) {
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1,
+                        const Point3f& p2, const Point3f& n2, const Point3f& p3, const Point3f& n3) {
         const unsigned int base = (unsigned int)m_vertices.size();
-        m_vertices.push_back(p0);
-        m_vertices.push_back(p1);
-        m_vertices.push_back(p2);
-        m_vertices.push_back(p3);
+        m_vertices.emplace_back(p0, n0);
+        m_vertices.emplace_back(p1, n1);
+        m_vertices.emplace_back(p2, n2);
+        m_vertices.emplace_back(p3, n3);
         m_indices.push_back(base + 0);
         m_indices.push_back(base + 1);
         m_indices.push_back(base + 2);
@@ -60,57 +64,88 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
         m_indices.push_back(base + 0);
     };
 
+    /// 全頂点に同一の法線を設定してquadを追加（平面フェース用）
+    auto addQuadFlat = [&](const Point3f& p0, const Point3f& p1, const Point3f& p2, const Point3f& p3,
+                           const Point3f& norm) {
+        addQuadN(p0, norm, p1, norm, p2, norm, p3, norm);
+    };
+
     /// コーナーあたりの弧分割数を許容誤差から計算 (chord error = r*(1-cos(π/N)) ≤ tol)
-    float r_ref = std::max(rx, std::max(ry, rz));
-    int   segs  = 8;
+    const float r_ref = std::max(rx, std::max(ry, rz));
+    int         segs  = 8;
     if (tol > 0.0f && r_ref > 0.0f) {
         segs = std::max(segs, (int)std::ceil((float)M_PI / std::sqrt(2.0f * tol / r_ref)));
     }
 
+    /// 楕円弧の法線: 楕円の陰関数 ((x-cx)/rx)^2 + ((y-cy)/ry)^2 = 1 の勾配方向
+    /// 各軸ペアに対して正規化した法線ベクトルを返す
+    auto ellipseNormXY = [&](float cos_t, float sin_t, float dx, float dy) -> Point3f {
+        return Point3f(dx * cos_t / rx, dy * sin_t / ry, 0.0f).normalized();
+    };
+    auto ellipseNormXZ = [&](float cos_u, float sin_u, float dx, float dz) -> Point3f {
+        return Point3f(dx * cos_u / rx, 0.0f, dz * sin_u / rz).normalized();
+    };
+    auto ellipseNormYZ = [&](float cos_v, float sin_v, float dy, float dz) -> Point3f {
+        return Point3f(0.0f, dy * cos_v / ry, dz * sin_v / rz).normalized();
+    };
+
+    /// 楕円球面コーナーの法線: 楕円球面の陰関数の勾配方向
+    /// P(u,v) = (cx+dx*rx*sin(u)*cos(v), cy+dy*ry*sin(u)*sin(v), cz+dz*rz*cos(u))
+    auto sphereNorm = [&](float u, float v, float dx, float dy, float dz) -> Point3f {
+        return Point3f(dx * std::sin(u) * std::cos(v) / rx, dy * std::sin(u) * std::sin(v) / ry,
+                       dz * std::cos(u) / rz)
+            .normalized();
+    };
+
     // ---- 6平面フェース ----
     /// Z- 面 (法線: -Z)
-    addQuad({x0 + rx, y0 + ry, z0}, {x0 + rx, y0 + H - ry, z0}, {x0 + W - rx, y0 + H - ry, z0},
-            {x0 + W - rx, y0 + ry, z0});
+    addQuadFlat({x0 + rx, y0 + ry, z0}, {x0 + rx, y0 + H - ry, z0}, {x0 + W - rx, y0 + H - ry, z0},
+                {x0 + W - rx, y0 + ry, z0}, {0.0f, 0.0f, -1.0f});
     /// Z+ 面 (法線: +Z)
-    addQuad({x0 + rx, y0 + ry, z0 + D}, {x0 + W - rx, y0 + ry, z0 + D}, {x0 + W - rx, y0 + H - ry, z0 + D},
-            {x0 + rx, y0 + H - ry, z0 + D});
+    addQuadFlat({x0 + rx, y0 + ry, z0 + D}, {x0 + W - rx, y0 + ry, z0 + D}, {x0 + W - rx, y0 + H - ry, z0 + D},
+                {x0 + rx, y0 + H - ry, z0 + D}, {0.0f, 0.0f, 1.0f});
     /// X- 面 (法線: -X)
-    addQuad({x0, y0 + ry, z0 + rz}, {x0, y0 + ry, z0 + D - rz}, {x0, y0 + H - ry, z0 + D - rz},
-            {x0, y0 + H - ry, z0 + rz});
+    addQuadFlat({x0, y0 + ry, z0 + rz}, {x0, y0 + ry, z0 + D - rz}, {x0, y0 + H - ry, z0 + D - rz},
+                {x0, y0 + H - ry, z0 + rz}, {-1.0f, 0.0f, 0.0f});
     /// X+ 面 (法線: +X)
-    addQuad({x0 + W, y0 + ry, z0 + rz}, {x0 + W, y0 + H - ry, z0 + rz}, {x0 + W, y0 + H - ry, z0 + D - rz},
-            {x0 + W, y0 + ry, z0 + D - rz});
+    addQuadFlat({x0 + W, y0 + ry, z0 + rz}, {x0 + W, y0 + H - ry, z0 + rz}, {x0 + W, y0 + H - ry, z0 + D - rz},
+                {x0 + W, y0 + ry, z0 + D - rz}, {1.0f, 0.0f, 0.0f});
     /// Y- 面 (法線: -Y)
-    addQuad({x0 + rx, y0, z0 + rz}, {x0 + W - rx, y0, z0 + rz}, {x0 + W - rx, y0, z0 + D - rz},
-            {x0 + rx, y0, z0 + D - rz});
+    addQuadFlat({x0 + rx, y0, z0 + rz}, {x0 + W - rx, y0, z0 + rz}, {x0 + W - rx, y0, z0 + D - rz},
+                {x0 + rx, y0, z0 + D - rz}, {0.0f, -1.0f, 0.0f});
     /// Y+ 面 (法線: +Y)
-    addQuad({x0 + rx, y0 + H, z0 + rz}, {x0 + rx, y0 + H, z0 + D - rz}, {x0 + W - rx, y0 + H, z0 + D - rz},
-            {x0 + W - rx, y0 + H, z0 + rz});
+    addQuadFlat({x0 + rx, y0 + H, z0 + rz}, {x0 + rx, y0 + H, z0 + D - rz}, {x0 + W - rx, y0 + H, z0 + D - rz},
+                {x0 + W - rx, y0 + H, z0 + rz}, {0.0f, 1.0f, 0.0f});
 
     // ---- 12辺の円弧ストリップ ----
     /// Z平行辺 (4本): XYコーナーに沿ってZ方向のストリップ
-    /// P(v, z) = (cx + dx*rx*cos(v), cy + dy*ry*sin(v), z)
+    /// P(t, z) = (cx + dx*rx*cos(t), cy + dy*ry*sin(t), z)
+    /// 法線は楕円弧の勾配: (dx*cos(t)/rx, dy*sin(t)/ry, 0) を正規化
     for (int sx = 0; sx < 2; sx++) {
         for (int sy = 0; sy < 2; sy++) {
-            const float cx     = x0 + (sx ? W - rx : rx);
-            const float cy     = y0 + (sy ? H - ry : ry);
-            const float dx_sgn = sx ? +1.0f : -1.0f;
-            const float dy_sgn = sy ? +1.0f : -1.0f;
-            // ここで符号の積で周回方向を判定
-            const bool flip = (dx_sgn * dy_sgn < 0);
+            const float cx  = x0 + (sx ? W - rx : rx);
+            const float cy  = y0 + (sy ? H - ry : ry);
+            const float dx  = sx ? +1.0f : -1.0f;
+            const float dy  = sy ? +1.0f : -1.0f;
+            const bool  flip = (dx * dy < 0.0f);
             for (int k = 0; k < segs; k++) {
-                const float v0r = (float)k * (float)M_PI_2 / segs;
-                const float v1r = (float)(k + 1) * (float)M_PI_2 / segs;
-                const float px0 = cx + dx_sgn * rx * std::cos(v0r);
-                const float py0 = cy + dy_sgn * ry * std::sin(v0r);
-                const float px1 = cx + dx_sgn * rx * std::cos(v1r);
-                const float py1 = cy + dy_sgn * ry * std::sin(v1r);
+                const float t0  = (float)k * (float)M_PI_2 / segs;
+                const float t1  = (float)(k + 1) * (float)M_PI_2 / segs;
+                const float c0  = std::cos(t0), s0 = std::sin(t0);
+                const float c1  = std::cos(t1), s1 = std::sin(t1);
+                const float px0 = cx + dx * rx * c0, py0 = cy + dy * ry * s0;
+                const float px1 = cx + dx * rx * c1, py1 = cy + dy * ry * s1;
+                const Point3f n0  = ellipseNormXY(c0, s0, dx, dy);
+                const Point3f n1  = ellipseNormXY(c1, s1, dx, dy);
+                const Point3f pt00 = {px0, py0, z0 + rz};
+                const Point3f pt01 = {px0, py0, z0 + D - rz};
+                const Point3f pt10 = {px1, py1, z0 + rz};
+                const Point3f pt11 = {px1, py1, z0 + D - rz};
                 if (flip) {
-                    // 反時計回りになるように順番を反転
-                    addQuad({px0, py0, z0 + rz}, {px0, py0, z0 + D - rz}, {px1, py1, z0 + D - rz}, {px1, py1, z0 + rz});
+                    addQuadN(pt00, n0, pt01, n0, pt11, n1, pt10, n1);
                 }
                 else {
-                    addQuad({px0, py0, z0 + rz}, {px1, py1, z0 + rz}, {px1, py1, z0 + D - rz}, {px0, py0, z0 + D - rz});
+                    addQuadN(pt00, n0, pt10, n1, pt11, n1, pt01, n0);
                 }
             }
         }
@@ -118,98 +153,117 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
 
     /// Y平行辺 (4本): XZコーナーに沿ってY方向のストリップ
     /// P(u, y) = (cx + dx*rx*cos(u), y, cz + dz*rz*sin(u))
+    /// 法線は楕円弧の勾配: (dx*cos(u)/rx, 0, dz*sin(u)/rz) を正規化
     for (int sx = 0; sx < 2; sx++) {
         for (int sz = 0; sz < 2; sz++) {
-            const float cx     = x0 + (sx ? W - rx : rx);
-            const float cz     = z0 + (sz ? D - rz : rz);
-            const float dx_sgn = sx ? +1.0f : -1.0f;
-            const float dz_sgn = sz ? +1.0f : -1.0f;
-            const bool  flip   = (dx_sgn * dz_sgn < 0);
+            const float cx  = x0 + (sx ? W - rx : rx);
+            const float cz  = z0 + (sz ? D - rz : rz);
+            const float dx  = sx ? +1.0f : -1.0f;
+            const float dz  = sz ? +1.0f : -1.0f;
+            const bool  flip = (dx * dz < 0.0f);
             for (int k = 0; k < segs; k++) {
-                const float u0r = (float)k * (float)M_PI_2 / segs;
-                const float u1r = (float)(k + 1) * (float)M_PI_2 / segs;
-                const float px0 = cx + dx_sgn * rx * std::cos(u0r);
-                const float pz0 = cz + dz_sgn * rz * std::sin(u0r);
-                const float px1 = cx + dx_sgn * rx * std::cos(u1r);
-                const float pz1 = cz + dz_sgn * rz * std::sin(u1r);
+                const float u0  = (float)k * (float)M_PI_2 / segs;
+                const float u1  = (float)(k + 1) * (float)M_PI_2 / segs;
+                const float c0  = std::cos(u0), s0 = std::sin(u0);
+                const float c1  = std::cos(u1), s1 = std::sin(u1);
+                const float px0 = cx + dx * rx * c0, pz0 = cz + dz * rz * s0;
+                const float px1 = cx + dx * rx * c1, pz1 = cz + dz * rz * s1;
+                const Point3f n0  = ellipseNormXZ(c0, s0, dx, dz);
+                const Point3f n1  = ellipseNormXZ(c1, s1, dx, dz);
+                const Point3f pt00 = {px0, y0 + ry, pz0};
+                const Point3f pt01 = {px0, y0 + H - ry, pz0};
+                const Point3f pt10 = {px1, y0 + ry, pz1};
+                const Point3f pt11 = {px1, y0 + H - ry, pz1};
                 if (flip) {
-                    addQuad({px0, y0 + ry, pz0}, {px1, y0 + ry, pz1}, {px1, y0 + H - ry, pz1}, {px0, y0 + H - ry, pz0});
+                    addQuadN(pt00, n0, pt10, n1, pt11, n1, pt01, n0);
                 }
                 else {
-                    addQuad({px0, y0 + ry, pz0}, {px0, y0 + H - ry, pz0}, {px1, y0 + H - ry, pz1}, {px1, y0 + ry, pz1});
+                    addQuadN(pt00, n0, pt01, n0, pt11, n1, pt10, n1);
                 }
             }
         }
     }
+
     /// X平行辺 (4本): YZコーナーに沿ってX方向のストリップ
     /// P(v, x) = (x, cy + dy*ry*cos(v), cz + dz*rz*sin(v))
+    /// 法線は楕円弧の勾配: (0, dy*cos(v)/ry, dz*sin(v)/rz) を正規化
     for (int sy = 0; sy < 2; sy++) {
         for (int sz = 0; sz < 2; sz++) {
-            const float cy     = y0 + (sy ? H - ry : ry);
-            const float cz     = z0 + (sz ? D - rz : rz);
-            const float dy_sgn = sy ? +1.0f : -1.0f;
-            const float dz_sgn = sz ? +1.0f : -1.0f;
-            const bool  flip   = (dy_sgn * dz_sgn < 0);
+            const float cy  = y0 + (sy ? H - ry : ry);
+            const float cz  = z0 + (sz ? D - rz : rz);
+            const float dy  = sy ? +1.0f : -1.0f;
+            const float dz  = sz ? +1.0f : -1.0f;
+            const bool  flip = (dy * dz < 0.0f);
             for (int k = 0; k < segs; k++) {
-                const float v0r = (float)k * (float)M_PI_2 / segs;
-                const float v1r = (float)(k + 1) * (float)M_PI_2 / segs;
-                const float py0 = cy + dy_sgn * ry * std::cos(v0r);
-                const float pz0 = cz + dz_sgn * rz * std::sin(v0r);
-                const float py1 = cy + dy_sgn * ry * std::cos(v1r);
-                const float pz1 = cz + dz_sgn * rz * std::sin(v1r);
+                const float v0  = (float)k * (float)M_PI_2 / segs;
+                const float v1  = (float)(k + 1) * (float)M_PI_2 / segs;
+                const float c0  = std::cos(v0), s0 = std::sin(v0);
+                const float c1  = std::cos(v1), s1 = std::sin(v1);
+                const float py0 = cy + dy * ry * c0, pz0 = cz + dz * rz * s0;
+                const float py1 = cy + dy * ry * c1, pz1 = cz + dz * rz * s1;
+                const Point3f n0  = ellipseNormYZ(c0, s0, dy, dz);
+                const Point3f n1  = ellipseNormYZ(c1, s1, dy, dz);
+                const Point3f pt00 = {x0 + rx, py0, pz0};
+                const Point3f pt01 = {x0 + W - rx, py0, pz0};
+                const Point3f pt10 = {x0 + rx, py1, pz1};
+                const Point3f pt11 = {x0 + W - rx, py1, pz1};
                 if (flip) {
-                    addQuad({x0 + rx, py0, pz0}, {x0 + W - rx, py0, pz0}, {x0 + W - rx, py1, pz1}, {x0 + rx, py1, pz1});
+                    addQuadN(pt00, n0, pt01, n0, pt11, n1, pt10, n1);
                 }
                 else {
-                    addQuad({x0 + rx, py0, pz0}, {x0 + rx, py1, pz1}, {x0 + W - rx, py1, pz1}, {x0 + W - rx, py0, pz0});
+                    addQuadN(pt00, n0, pt10, n1, pt11, n1, pt01, n0);
                 }
             }
         }
     }
 
     // ---- 8コーナー (楕円球面の1/8パッチ) ----
-    /// geom_sphereOctant_type1 の球面をポリゴンで表現
     /// P(u,v) = (cx + dx*rx*sin(u)*cos(v),
     ///           cy + dy*ry*sin(u)*sin(v),
     ///           cz + dz*rz*cos(u))
+    /// 法線は楕円球面の陰関数の勾配:
+    ///   (dx*sin(u)*cos(v)/rx, dy*sin(u)*sin(v)/ry, dz*cos(u)/rz) を正規化
     for (int sx = 0; sx < 2; sx++) {
         for (int sy = 0; sy < 2; sy++) {
             for (int sz = 0; sz < 2; sz++) {
-                const float cx     = x0 + (sx ? W - rx : rx);
-                const float cy     = y0 + (sy ? H - ry : ry);
-                const float cz     = z0 + (sz ? D - rz : rz);
-                const float dx_sgn = sx ? +1.0f : -1.0f;
-                const float dy_sgn = sy ? +1.0f : -1.0f;
-                const float dz_sgn = sz ? +1.0f : -1.0f;
-                auto        spt    = [&](int ui, int vi) -> Point3f {
+                const float cx  = x0 + (sx ? W - rx : rx);
+                const float cy  = y0 + (sy ? H - ry : ry);
+                const float cz  = z0 + (sz ? D - rz : rz);
+                const float dx  = sx ? +1.0f : -1.0f;
+                const float dy  = sy ? +1.0f : -1.0f;
+                const float dz  = sz ? +1.0f : -1.0f;
+                auto        spt = [&](int ui, int vi) -> Point3f {
                     const float u = (float)ui * (float)M_PI_2 / segs;
                     const float v = (float)vi * (float)M_PI_2 / segs;
-                    return {cx + dx_sgn * rx * std::sin(u) * std::cos(v), cy + dy_sgn * ry * std::sin(u) * std::sin(v),
-                            cz + dz_sgn * rz * std::cos(u)};
+                    return {cx + dx * rx * std::sin(u) * std::cos(v), cy + dy * ry * std::sin(u) * std::sin(v),
+                            cz + dz * rz * std::cos(u)};
+                };
+                auto snrm = [&](int ui, int vi) -> Point3f {
+                    const float u = (float)ui * (float)M_PI_2 / segs;
+                    const float v = (float)vi * (float)M_PI_2 / segs;
+                    return sphereNorm(u, v, dx, dy, dz);
                 };
                 /// 符号の積 dx*dy*dz が負（マイナスの個数が奇数）のとき
                 /// d/du×d/dv が内向きになるので巻き順を反転して外向き法線を保つ
                 const bool flip = ((sx + sy + sz) % 2 == 0);
                 for (int ui = 0; ui < segs; ui++) {
                     for (int vi = 0; vi < segs; vi++) {
-                        const Point3f p00 = spt(ui, vi);
-                        const Point3f p10 = spt(ui + 1, vi);
-                        const Point3f p11 = spt(ui + 1, vi + 1);
-                        const Point3f p01 = spt(ui, vi + 1);
                         if (flip) {
-                            addQuad(p00, p01, p11, p10);
+                            addQuadN(spt(ui, vi), snrm(ui, vi), spt(ui, vi + 1), snrm(ui, vi + 1),
+                                     spt(ui + 1, vi + 1), snrm(ui + 1, vi + 1), spt(ui + 1, vi), snrm(ui + 1, vi));
                         }
                         else {
-                            addQuad(p00, p10, p11, p01);
+                            addQuadN(spt(ui, vi), snrm(ui, vi), spt(ui + 1, vi), snrm(ui + 1, vi),
+                                     spt(ui + 1, vi + 1), snrm(ui + 1, vi + 1), spt(ui, vi + 1), snrm(ui, vi + 1));
                         }
                     }
                 }
             }
         }
     }
+
     markRenderDirty();
     markBoxDirty();
-    */
 }
 
 void RenderNormalMesh::updateBoundingBox()
