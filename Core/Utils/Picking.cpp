@@ -86,6 +86,45 @@ bool Picking::getNearestPoint(Node* node, const Point3f& line_dir, const Point3f
                 }
             }
         } break;
+        case RenderableType::RenderEditableNormalMesh: {
+            RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
+            const auto&               vertices =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+
+            for (const auto vertex : vertices) {
+                const auto& ver = has_matrix ? matrix.preMult(vertex.m_position) : vertex.m_position;
+
+                const auto& vec   = ver - line_pos;
+                const auto& cross = vec ^ line_dir;
+
+                float dist2 = cross.length2();
+                if (dist2 <= judge_dist2) {
+                    float param = (vec * line_dir);
+                    if ((param < min_param) || (param == min_param && dist2 < min_dist2)) {
+                        const auto& chect_ver_screen = m_scene_view->projectToScreen(ver);
+
+                        int x_pos = chect_ver_screen.x() - m_mouse_pos.x() + m_view_port_width / 2;
+                        int y_pos = chect_ver_screen.y() - m_mouse_pos.y() + m_view_port_height / 2;
+
+                        if (x_pos >= 0 && x_pos < m_view_port_width && y_pos >= 0 && y_pos < m_view_port_height) {
+                            int index = (y_pos * m_view_port_width + x_pos);
+
+                            const auto& check_ver = m_scene_view->unprojectFromScreen(
+                                Point3f(chect_ver_screen.x(), chect_ver_screen.y(), m_depth_buffer[index]));
+                            const auto& check_vec = check_ver - line_pos;
+
+                            float check_param = (check_vec * line_dir);
+                            if (param <= check_param + 1.0e-6f) {
+                                min_param   = param;
+                                min_dist2   = dist2;
+                                nearest_pos = ver;
+                                ret         = true;
+                            }
+                        }
+                    }
+                }
+            }
+        } break;
     }
 
     return ret;
@@ -105,10 +144,9 @@ void Picking::bodyLineIntersectionMinimumTarget(const Matrix4x4f& inv_line_matri
     auto renderable = node->renderable();
     if (renderable) {
         switch (renderable->type()) {
-            case RenderableType::RenderEditableMesh: {
-                RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
-
-                auto bbox = cur_matrix.preMult(mesh->boundingBox());
+            case RenderableType::RenderEditableMesh:
+            case RenderableType::RenderEditableNormalMesh: {
+                auto bbox = cur_matrix.preMult(renderable->boundingBox());
 
                 if (bbox.valid()) {
                     if (bbox.xMin() > 0.0f + fTol || bbox.xMax() < 0.0f - fTol || bbox.yMin() > 0.0f + fTol
@@ -150,7 +188,8 @@ void Picking::bodyLineIntersectionMinimumTarget(const Matrix4x4f& inv_line_matri
         auto renderable = node->renderable();
         if (renderable) {
             switch (renderable->type()) {
-                case RenderableType::RenderEditableMesh: {
+                case RenderableType::RenderEditableMesh:
+                case RenderableType::RenderEditableNormalMesh: {
                     auto bbox = cur_matrix.preMult(renderable->boundingBox());
 
                     if (bbox.valid()) {
@@ -330,6 +369,122 @@ void Picking::bodyLineIntersectionMinimum(std::vector<TargetNodeInfo>& targets, 
                     }
                 }
             } break;
+            case RenderableType::RenderEditableNormalMesh: {
+                RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
+
+                const auto& vertex_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+                const auto& index_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
+
+                SIntersectionInfo temp;
+                temp.m_node = node;
+
+                const auto& group_boxes = mesh->displayTriaGroupBox();
+                const auto& group_start = mesh->displayTriaGroupStart();
+
+                std::vector<TargetIndexInfo> target_index;
+
+                for (int group_index = 0; group_index < group_start.size(); ++group_index) {
+                    auto bbox = cur_matrix.preMult(group_boxes[group_index]);
+
+                    if (bbox.valid()) {
+                        if (bbox.xMin() > 0.0f + fTol || bbox.xMax() < 0.0f - fTol || bbox.yMin() > 0.0f + fTol
+                            || bbox.yMax() < 0.0f - fTol) {
+                            continue;
+                        }
+                        if (above_line_pos) {
+                            if (bbox.zMin() > 0.0f + fTol) {
+                                continue;
+                            }
+                        }
+                        if (m_line_dir_minimum != FLT_MAX) {
+                            if (bbox.zMin() > m_line_dir_minimum) {
+                                continue;
+                            }
+                        }
+                        target_index.emplace_back(group_index, bbox.zMin());
+                    }
+                }
+                std::sort(target_index.begin(), target_index.end(),
+                          [](const TargetIndexInfo& info0, const TargetIndexInfo& info1) {
+                              return info0.m_box_dist_line_dir < info1.m_box_dist_line_dir;
+                          });
+
+                for (int index = 0; index < target_index.size(); ++index) {
+                    int group_index = target_index[index].m_index;
+
+                    if (m_line_dir_minimum != FLT_MAX) {
+                        if (target_index[index].m_box_dist_line_dir > m_line_dir_minimum) {
+                            /// ループ自体終わる
+                            break;
+                        }
+                    }
+
+                    int start_index = group_start[group_index];
+                    int end_index;
+                    if (group_index < group_start.size() - 1) {
+                        end_index = group_start[group_index + 1];
+                    }
+                    else {
+                        end_index = index_list.size();
+                    }
+
+                    for (int ic = start_index; ic < end_index; ic += 3) {
+                        const unsigned int* tri_indices = &index_list[ic];
+
+                        const auto point0 = cur_matrix * vertex_list[tri_indices[0]].m_position;
+                        const auto point1 = cur_matrix * vertex_list[tri_indices[1]].m_position;
+                        const auto point2 = cur_matrix * vertex_list[tri_indices[2]].m_position;
+
+                        float dist_line_dir, dist_line_tol;
+                        if (triaZeroLineInersection(point0, point1, point2, dist_line_dir, dist_line_tol, fTol)) {
+                            Point3f triaNorm = (point1 - point0) ^ (point2 - point0);
+                            triaNorm.normalize();
+
+                            /// オプション　- 面上の接触を除外
+                            if (m_except_on_plane) {
+                                /// triaNorm * Point3f(0,0,1) -> Z成分
+                                if (fabs(triaNorm[2]) <= m_except_on_plane_cos) {
+                                    continue;
+                                }
+                            }
+
+                            /// 最小の一つのみ取得
+                            if (m_only_get_minimum) {
+                                if (!intersetions.empty()) {
+                                    if (dist_line_dir < intersetions[0].m_dist_line_dir) {
+                                        temp.m_dist_line_dir = dist_line_dir;
+                                        temp.m_dist_line_tol = dist_line_tol;
+                                        temp.m_tria_index    = ic;
+                                        temp.m_tria_norm     = triaNorm;
+                                        intersetions[0]      = temp;
+                                        m_line_dir_minimum   = dist_line_dir;
+                                    }
+                                    if (dist_line_dir == intersetions[0].m_dist_line_dir) {
+                                        if (fabs(triaNorm[2]) > fabs(intersetions[0].m_tria_norm[2])) {
+                                            temp.m_dist_line_dir = dist_line_dir;
+                                            temp.m_dist_line_tol = dist_line_tol;
+                                            temp.m_tria_index    = ic;
+                                            temp.m_tria_norm     = triaNorm;
+                                            intersetions[0]      = temp;
+                                            m_line_dir_minimum   = dist_line_dir;
+                                        }
+                                    }
+                                    continue;
+                                }
+                                m_line_dir_minimum = dist_line_dir;
+                            }
+
+                            temp.m_dist_line_dir = dist_line_dir;
+                            temp.m_dist_line_tol = dist_line_tol;
+                            temp.m_tria_index    = ic;
+                            temp.m_tria_norm     = triaNorm;
+                            intersetions.emplace_back(temp);
+                        }
+                    }
+                }
+            } break;
             default:
                 break;
         }
@@ -418,6 +573,123 @@ void Picking::bodyLineIntersection(const Matrix4x4f& inv_line_matrix, Node* node
                         const auto point0 = cur_matrix * vertex_list[tri_indices[0]];
                         const auto point1 = cur_matrix * vertex_list[tri_indices[1]];
                         const auto point2 = cur_matrix * vertex_list[tri_indices[2]];
+
+                        float dist_line_dir, dist_line_tol;
+                        if (triaZeroLineInersection(point0, point1, point2, dist_line_dir, dist_line_tol, fTol)) {
+                            Point3f triaNorm = (point1 - point0) ^ (point2 - point0);
+                            triaNorm.normalize();
+
+                            /// オプション　- 面上の接触を除外
+                            if (m_except_on_plane) {
+                                /// triaNorm * Point3f(0,0,1) -> Z成分
+                                if (fabs(triaNorm[2]) <= m_except_on_plane_cos) {
+                                    continue;
+                                }
+                            }
+
+                            /// 最小の一つのみ取得
+                            if (m_only_get_minimum) {
+                                if (!intersetions.empty()) {
+                                    if (dist_line_dir < intersetions[0].m_dist_line_dir) {
+                                        temp.m_dist_line_dir = dist_line_dir;
+                                        temp.m_dist_line_tol = dist_line_tol;
+                                        temp.m_tria_index    = ic;
+                                        temp.m_tria_norm     = triaNorm;
+                                        intersetions[0]      = temp;
+                                        m_line_dir_minimum   = dist_line_dir;
+                                    }
+                                    if (dist_line_dir == intersetions[0].m_dist_line_dir) {
+                                        if (fabs(triaNorm[2]) > fabs(intersetions[0].m_tria_norm[2])) {
+                                            temp.m_dist_line_dir = dist_line_dir;
+                                            temp.m_dist_line_tol = dist_line_tol;
+                                            temp.m_tria_index    = ic;
+                                            temp.m_tria_norm     = triaNorm;
+                                            intersetions[0]      = temp;
+                                            m_line_dir_minimum   = dist_line_dir;
+                                        }
+                                    }
+                                    continue;
+                                }
+                                m_line_dir_minimum = dist_line_dir;
+                            }
+
+                            temp.m_dist_line_dir = dist_line_dir;
+                            temp.m_dist_line_tol = dist_line_tol;
+                            temp.m_tria_index    = ic;
+                            temp.m_tria_norm     = triaNorm;
+                            intersetions.emplace_back(temp);
+                        }
+                    }
+                }
+            } break;
+            case RenderableType::RenderEditableNormalMesh: {
+                auto bbox = cur_matrix.preMult(renderable->boundingBox());
+
+                if (bbox.valid()) {
+                    if (bbox.xMin() > 0.0f + fTol || bbox.xMax() < 0.0f - fTol || bbox.yMin() > 0.0f + fTol
+                        || bbox.yMax() < 0.0f - fTol) {
+                        return;
+                    }
+                    if (above_line_pos) {
+                        if (bbox.zMin() > 0.0f + fTol) {
+                            return;
+                        }
+                    }
+                    if (m_line_dir_minimum != FLT_MAX) {
+                        if (bbox.zMin() > m_line_dir_minimum) {
+                            return;
+                        }
+                    }
+                }
+
+                RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
+
+                const auto& vertex_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+                const auto& index_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
+
+                SIntersectionInfo temp;
+                temp.m_node = node;
+
+                const auto& group_boxes = mesh->displayTriaGroupBox();
+                const auto& group_start = mesh->displayTriaGroupStart();
+
+                for (int group_index = 0; group_index < group_start.size(); ++group_index) {
+                    auto bbox = inv_line_matrix.preMult(group_boxes[group_index]);
+
+                    if (bbox.valid()) {
+                        if (bbox.xMin() > 0.0f + fTol || bbox.xMax() < 0.0f - fTol || bbox.yMin() > 0.0f + fTol
+                            || bbox.yMax() < 0.0f - fTol) {
+                            continue;
+                        }
+                        if (above_line_pos) {
+                            if (bbox.zMin() > 0.0f + fTol) {
+                                continue;
+                            }
+                        }
+                        if (m_line_dir_minimum != FLT_MAX) {
+                            if (bbox.zMin() > m_line_dir_minimum) {
+                                continue;
+                            }
+                        }
+                    }
+
+                    int start_index = group_start[group_index];
+                    int end_index;
+                    if (group_index < group_start.size() - 1) {
+                        end_index = group_start[group_index + 1];
+                    }
+                    else {
+                        end_index = index_list.size();
+                    }
+
+                    for (int ic = start_index; ic < end_index; ic += 3) {
+                        const unsigned int* tri_indices = &index_list[ic];
+
+                        const auto point0 = cur_matrix * vertex_list[tri_indices[0]].m_position;
+                        const auto point1 = cur_matrix * vertex_list[tri_indices[1]].m_position;
+                        const auto point2 = cur_matrix * vertex_list[tri_indices[2]].m_position;
 
                         float dist_line_dir, dist_line_tol;
                         if (triaZeroLineInersection(point0, point1, point2, dist_line_dir, dist_line_tol, fTol)) {
@@ -639,9 +911,17 @@ bool Picking::triaZeroLineInersection(const Point3f& v0, const Point3f& v1, cons
 
 bool Picking::SIntersectionInfo::orgTria(bool global, Point3f& point0, Point3f& point1, Point3f& point2)
 {
-    if (m_node) {
-        auto renderable = m_node->renderable();
-        if (renderable && renderable->type() == RenderableType::RenderEditableMesh) {
+    if (!m_node) {
+        return false;
+    }
+
+    auto renderable = m_node->renderable();
+    if (!renderable) {
+        return false;
+    }
+
+    switch (renderable->type()) {
+        case RenderableType::RenderEditableMesh: {
             RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
             const auto& vertex_list =
@@ -666,7 +946,33 @@ bool Picking::SIntersectionInfo::orgTria(bool global, Point3f& point0, Point3f& 
                 }
                 return true;
             }
-        }
+        } break;
+        case RenderableType::RenderEditableNormalMesh: {
+            RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
+
+            const auto& vertex_list =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+            const auto& index_list =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
+
+            if (m_tria_index >= 0 && m_tria_index < index_list.size()) {
+                const unsigned int* tri_indices = &index_list[m_tria_index];
+
+                if (global) {
+                    const Matrix4x4f& path_matrix = m_node->pathMatrix();
+
+                    point0 = path_matrix * vertex_list[tri_indices[0]].m_position;
+                    point1 = path_matrix * vertex_list[tri_indices[1]].m_position;
+                    point2 = path_matrix * vertex_list[tri_indices[2]].m_position;
+                }
+                else {
+                    point0 = vertex_list[tri_indices[0]].m_position;
+                    point1 = vertex_list[tri_indices[1]].m_position;
+                    point2 = vertex_list[tri_indices[2]].m_position;
+                }
+                return true;
+            }
+        } break;
     }
 
     return false;
@@ -674,9 +980,17 @@ bool Picking::SIntersectionInfo::orgTria(bool global, Point3f& point0, Point3f& 
 
 Point3f Picking::SIntersectionInfo::orgNorm(bool global)
 {
-    if (m_node) {
-        auto renderable = m_node->renderable();
-        if (renderable && renderable->type() == RenderableType::RenderEditableMesh) {
+    if (!m_node) {
+        return Point3f();
+    }
+
+    auto renderable = m_node->renderable();
+    if (!renderable) {
+        return Point3f();
+    }
+
+    switch (renderable->type()) {
+        case RenderableType::RenderEditableMesh: {
             RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
             const auto& vertex_list =
@@ -705,7 +1019,38 @@ Point3f Picking::SIntersectionInfo::orgNorm(bool global)
                 triaNorm.normalize();
                 return triaNorm;
             }
-        }
+        } break;
+        case RenderableType::RenderEditableNormalMesh: {
+            RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
+
+            const auto& vertex_list =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+            const auto& index_list =
+                mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
+
+            if (m_tria_index >= 0 && m_tria_index < index_list.size()) {
+                const unsigned int* tri_indices = &index_list[m_tria_index];
+
+                Point3f point0, point1, point2;
+                if (global) {
+                    const Matrix4x4f& path_matrix = m_node->pathMatrix();
+
+                    point0 = path_matrix * vertex_list[tri_indices[0]].m_position;
+                    point1 = path_matrix * vertex_list[tri_indices[1]].m_position;
+                    point2 = path_matrix * vertex_list[tri_indices[2]].m_position;
+                }
+                else {
+                    point0 = vertex_list[tri_indices[0]].m_position;
+                    point1 = vertex_list[tri_indices[1]].m_position;
+                    point2 = vertex_list[tri_indices[2]].m_position;
+                }
+
+                /// とりあえず三角形の法線を返す（normalの平均返す？）
+                Point3f triaNorm = (point1 - point0) ^ (point2 - point0);
+                triaNorm.normalize();
+                return triaNorm;
+            }
+        } break;
     }
 
     return Point3f();
