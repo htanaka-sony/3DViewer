@@ -47,21 +47,25 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     rz             = std::min(rz, D * 0.5f);
     const float x0 = mn.x(), y0 = mn.y(), z0 = mn.z();
 
+    /// 頂点・インデックスバッファへの書き込みカーソル (resize後のインデックス書き込みに使用)
+    int vIdx = 0;
+    int iIdx = 0;
+
     /// 各頂点に個別の法線を設定してquadを追加
     /// Triangle1: p0,p1,p2  Triangle2: p2,p3,p0
     auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
                         const Point3f& n2, const Point3f& p3, const Point3f& n3) {
-        const unsigned int base = (unsigned int)m_vertices.size();
-        m_vertices.emplace_back(p0, n0);
-        m_vertices.emplace_back(p1, n1);
-        m_vertices.emplace_back(p2, n2);
-        m_vertices.emplace_back(p3, n3);
-        m_indices.emplace_back(base + 0);
-        m_indices.emplace_back(base + 1);
-        m_indices.emplace_back(base + 2);
-        m_indices.emplace_back(base + 2);
-        m_indices.emplace_back(base + 3);
-        m_indices.emplace_back(base + 0);
+        const unsigned int base    = (unsigned int)vIdx;
+        m_vertices[vIdx++]         = {p0, n0};
+        m_vertices[vIdx++]         = {p1, n1};
+        m_vertices[vIdx++]         = {p2, n2};
+        m_vertices[vIdx++]         = {p3, n3};
+        m_indices[iIdx++]          = base + 0;
+        m_indices[iIdx++]          = base + 1;
+        m_indices[iIdx++]          = base + 2;
+        m_indices[iIdx++]          = base + 2;
+        m_indices[iIdx++]          = base + 3;
+        m_indices[iIdx++]          = base + 0;
 
         /*
         if (m_create_section_line) {
@@ -104,12 +108,12 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
         sinTab[segs] = 1.0f;
     }
 
-    /// 頂点・インデックスバッファを事前確保
+    /// 頂点・インデックスバッファを事前生成
     /// 6面: 6×4頂点, 12辺: 12×segs×4頂点, 8コーナー: 8×segs²×4頂点
     {
         const int nv = 24 + 48 * segs + 32 * segs * segs;
-        m_vertices.reserve(nv);
-        m_indices.reserve(nv / 4 * 6);    /// quad ごとに6インデックス (4頂点で2三角形)
+        m_vertices.resize(nv);
+        m_indices.resize(nv / 4 * 6);    /// quad ごとに6インデックス (4頂点で2三角形)
     }
 
     /// 楕円弧の法線: 楕円の陰関数 ((x-cx)/rx)^2 + ((y-cy)/ry)^2 = 1 の勾配方向
