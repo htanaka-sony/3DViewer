@@ -85,7 +85,7 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     int         segs  = 1;
     if (tol > 0.0f && r_ref > 0.0f) {
         segs = std::max(segs, (int)std::ceil((float)M_PI / std::sqrt(2.0f * tol / r_ref)));
-        segs = std::min(segs, 64);    /// 過剰分割を防ぐ上限
+        segs = std::min(segs, 64);    /// 過剰分割を防ぐ上限 (segs=64 で約 32×64×64×8=1M 頂点規模)
     }
 
     /// sin/cos テーブルを事前計算して使い回す
@@ -246,8 +246,9 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     ///   (dx*sin(u)*cos(v)/rx, dy*sin(u)*sin(v)/ry, dz*cos(u)/rz) を正規化
     ///
     /// 格子点を事前計算して重複演算を排除 (各 (ui,vi) は隣接 quad から最大4回参照される)
-    const int              sv = segs + 1;
-    std::vector<Point3f>   gridPt(sv * sv), gridNrm(sv * sv);
+    /// ベクタをループ外で確保してリアロケーションを回避する
+    const int            gridStride = segs + 1;
+    std::vector<Point3f> gridPt(gridStride * gridStride), gridNrm(gridStride * gridStride);
     for (int sx = 0; sx < 2; sx++) {
         for (int sy = 0; sy < 2; sy++) {
             for (int sz = 0; sz < 2; sz++) {
@@ -262,10 +263,10 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
                 for (int ui = 0; ui <= segs; ui++) {
                     const float su = sinTab[ui], cu = cosTab[ui];
                     for (int vi = 0; vi <= segs; vi++) {
-                        const float       cv  = cosTab[vi], sv_ = sinTab[vi];
-                        const int         idx = ui * sv + vi;
-                        gridPt[idx]           = {cx + dx * rx * su * cv, cy + dy * ry * su * sv_, cz + dz * rz * cu};
-                        gridNrm[idx] = Point3f(dx * su * cv / rx, dy * su * sv_ / ry, dz * cu / rz).normalized();
+                        const float      cosV = cosTab[vi], sinV = sinTab[vi];
+                        const int        idx  = ui * gridStride + vi;
+                        gridPt[idx]           = {cx + dx * rx * su * cosV, cy + dy * ry * su * sinV, cz + dz * rz * cu};
+                        gridNrm[idx] = Point3f(dx * su * cosV / rx, dy * su * sinV / ry, dz * cu / rz).normalized();
                     }
                 }
 
@@ -274,10 +275,10 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
                 const bool flip = ((sx + sy + sz) % 2 == 0);
                 for (int ui = 0; ui < segs; ui++) {
                     for (int vi = 0; vi < segs; vi++) {
-                        const int i00 = ui * sv + vi;
-                        const int i01 = ui * sv + vi + 1;
-                        const int i10 = (ui + 1) * sv + vi;
-                        const int i11 = (ui + 1) * sv + vi + 1;
+                        const int i00 = ui * gridStride + vi;
+                        const int i01 = ui * gridStride + vi + 1;
+                        const int i10 = (ui + 1) * gridStride + vi;
+                        const int i11 = (ui + 1) * gridStride + vi + 1;
                         if (flip) {
                             addQuadN(gridPt[i00], gridNrm[i00], gridPt[i01], gridNrm[i01], gridPt[i11], gridNrm[i11],
                                      gridPt[i10], gridNrm[i10]);
