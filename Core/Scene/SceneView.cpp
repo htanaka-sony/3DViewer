@@ -346,11 +346,11 @@ bool SceneView::fitDisplay(float fit_ratio)
     return fitDisplayViewBox(bbox, fit_ratio);
 }
 
-bool SceneView::fitDisplay(const VecNode& node_list, bool only_visible)
+bool SceneView::fitDisplay(VecNode& node_list, bool only_visible)
 {
     BoundingBox3f bbox;
     const auto&   mv_matrix = mvMatrix();
-    for (const auto& node : node_list) {
+    for (auto& node : node_list) {
         if (only_visible) {
             if (!node->isParentVisible()) {
                 continue;

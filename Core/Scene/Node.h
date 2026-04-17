@@ -125,9 +125,17 @@ public:
     void          updateBoundingBox();
     BoundingBox3f renderableBoundingBox();
 
+    struct TargetNode {
+        Node*         m_node;
+        Matrix4x4f    m_path_matrix;
+        BoundingBox3f m_bbox;
+    };
+    void collectTarget(Node* node, const Matrix4x4f& parent_matrix, std::vector<TargetNode>& target_list,
+                       bool only_visible);
+
     /// 正確な取得
     BoundingBox3f calculateBoundingBox(const Matrix4x4f& parent_matrix = Matrix4x4f(), bool only_visible = true,
-                                       bool including_text = false) const;
+                                       bool including_text = false);
 
     void              setMatrix(const Matrix4x4f& matrix);
     const Matrix4x4f& matrix() const;

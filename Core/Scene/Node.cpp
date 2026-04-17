@@ -2,6 +2,10 @@
 #include "Annotation.h"
 #include "Shape.h"
 
+#undef min
+#undef max
+#undef abs
+
 CORE_NAMESPACE_BEGIN
 
 Node::Node()
@@ -465,24 +469,75 @@ BoundingBox3f Node::renderableBoundingBox()
     return BoundingBox3f();
 }
 
-BoundingBox3f Node::calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible, bool including_text) const
+void Node::collectTarget(Node* node, const Matrix4x4f& parent_matrix, std::vector<TargetNode>& target_list,
+                         bool only_visible)
+{
+    if (only_visible) {
+        if (!node->isVisible()) {
+            return;
+        }
+    }
+
+    /// パスマトリックス設定
+    Matrix4x4f  cur_parent_matrix = parent_matrix;
+    const auto& matrix            = node->matrix();
+    if (!matrix.isIdentity()) {
+        cur_parent_matrix = cur_parent_matrix * matrix;
+    }
+
+    /// 対象を取得
+    target_list.emplace_back(node, cur_parent_matrix, cur_parent_matrix * node->boundingBox());
+
+    for (auto child : node->children()) {
+        collectTarget(child.ptr(), cur_parent_matrix, target_list, only_visible);
+    }
+}
+
+BoundingBox3f Node::calculateBoundingBox(const Matrix4x4f& parent_matrix, bool only_visible, bool including_text)
 {
     if (only_visible && !isVisible()) {
         return BoundingBox3f();
     }
 
-    Matrix4x4f cur_matrix = parent_matrix * m_matrix;
+    /// 再帰で単純にやると全頂点を処理するので遅い
+    /// Boxが欲しいだけなので端から処理して、内部除外する
+
+    std::vector<TargetNode> target_list;
+    collectTarget(this, parent_matrix, target_list, only_visible);
+
+    /// 全体Box
+    BoundingBox3f all_box;
+    for (auto& target : target_list) {
+        all_box.expandBy(target.m_bbox);
+    }
+
+    std::vector<TargetNode*> sorted_target_list;
+    for (auto& target : target_list) {
+        sorted_target_list.emplace_back(&target);
+    }
+
+    auto center           = all_box.center();
+    auto dist_from_center = [&](const BoundingBox3f& node_box) { return (node_box.center() - center).length2(); };
+
+    std::sort(sorted_target_list.begin(), sorted_target_list.end(), [&](const TargetNode* a, const TargetNode* b) {
+        return dist_from_center(a->m_bbox) > dist_from_center(b->m_bbox);
+    });
 
     BoundingBox3f new_bbox;
-    if (m_renderable != nullptr) {
-        new_bbox.expandBy(m_renderable->calculateBoundingBox(cur_matrix, only_visible, including_text));
-    }
-    else if (m_object != nullptr) {
-        new_bbox.expandBy(m_object->calculateBoundingBox(cur_matrix, only_visible, including_text));
-    }
+    for (auto& target : sorted_target_list) {
+        auto renderable = target->m_node->renderable();
+        auto object     = target->m_node->object();
 
-    for (auto& child : m_children) {
-        new_bbox.expandBy(child->calculateBoundingBox(cur_matrix, only_visible, including_text));
+        if (new_bbox.contains(target->m_bbox)) {
+            continue;
+        }
+
+        if (renderable != nullptr) {
+            new_bbox.expandBy(renderable->calculateBoundingBox(target->m_path_matrix, only_visible, including_text));
+        }
+        else if (object != nullptr) {
+            new_bbox.expandBy(object->calculateBoundingBox(target->m_path_matrix, only_visible, including_text));
+        }
     }
 
     return new_bbox;

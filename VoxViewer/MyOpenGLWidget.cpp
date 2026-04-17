@@ -1817,8 +1817,9 @@ void MyOpenGLWidget::fitDisplay(int material_id)
 
 void MyOpenGLWidget::fitDisplay(Node* node)
 {
-    if (!m_scene_view->fitDisplay({node}, true)) {
-        m_scene_view->fitDisplay({node}, false);
+    VecNode node_list({node});
+    if (!m_scene_view->fitDisplay(node_list, true)) {
+        m_scene_view->fitDisplay(node_list, false);
     }
     update();
 }

@@ -128,9 +128,21 @@ public:
     const std::vector<BoundingBox3f>& displaySegmentsGroupBox() const { return m_segments_group_box; }
     const std::vector<unsigned int>&  displaySegmentsGroupStart() const { return m_segments_group_start_index; }
 
-    const std::vector<BoundingBox3f>& displayTriaGroupBox() const { return m_tria_group_box; }
-    const std::vector<unsigned int>&  displayTriaGroupStart() const { return m_tria_group_start_index; }
-    void                              createGroupBoundingBox();
+    void markTriaGroupDirty() { m_tria_group_dirty = true; }
+    void resetTriaGroupDirty() { m_tria_group_dirty = false; }
+    bool isTriaGroupDirty() const { return m_tria_group_dirty; }
+
+    const std::vector<BoundingBox3f>& displayTriaGroupBox()
+    {
+        createGroupBoundingBox();
+        return m_tria_group_box;
+    }
+    const std::vector<unsigned int>& displayTriaGroupStart()
+    {
+        createGroupBoundingBox();
+        return m_tria_group_start_index;
+    }
+    void createGroupBoundingBox();
 
     virtual void clearDisplayData() override;
 
@@ -178,6 +190,7 @@ protected:
     bool m_eneble_edit_display  = false;
     bool m_edit_buffer_2        = false;
     bool m_segments_group_dirty = true;
+    bool m_tria_group_dirty     = true;
     bool m_draw_shading         = true;
     bool m_draw_wireframe       = true;
 

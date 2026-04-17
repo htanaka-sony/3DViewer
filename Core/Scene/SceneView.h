@@ -44,7 +44,7 @@ public:
     bool fitDisplayViewBox(const BoundingBox3f& view_box, float fit_ratio = 1.05f);
     bool fitDisplayObjectBox(const BoundingBox3f& obj_box, float fit_ratio = 1.05f);
     bool fitDisplay(float fit_ratio = 1.05f);
-    bool fitDisplay(const VecNode& node_list, bool only_visible);
+    bool fitDisplay(VecNode& node_list, bool only_visible);
 
     void setViewNearFar(bool perspective_eye_adjust = true);
 

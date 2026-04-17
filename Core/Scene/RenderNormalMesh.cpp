@@ -82,7 +82,7 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
 
     /// コーナーあたりの弧分割数を許容誤差から計算 (chord error = r*(1-cos(π/N)) ≤ tol)
     const float r_ref = std::max(rx, std::max(ry, rz));
-    int         segs  = 8;
+    int         segs  = 1;
     if (tol > 0.0f && r_ref > 0.0f) {
         segs = std::max(segs, (int)std::ceil((float)M_PI / std::sqrt(2.0f * tol / r_ref)));
     }
@@ -576,11 +576,9 @@ void RenderEditableNormalMesh::updateBoundingBox()
         }
     }
     else {
-        for (const auto& vertex : originalMesh()->m_vertices) {
-            m_bbox.expandBy(vertex.m_position);
-        }
+        m_bbox = originalMesh()->boundingBox();
     }
-    createGroupBoundingBox();
+    // createGroupBoundingBox();
     resetBoxDirty();
 }
 
@@ -629,6 +627,9 @@ void RenderEditableNormalMesh::createDisplaySegmentsGroupData()
 
 void RenderEditableNormalMesh::createGroupBoundingBox()
 {
+    if (!isTriaGroupDirty()) {
+        return;
+    }
     const auto& vertex_list = isEnableEditDisplayData() ? displayEditVertices() : displayVertices();
     const auto& index_list  = isEnableEditDisplayData() ? displayEditIndices() : displayIndices();
 
@@ -646,6 +647,7 @@ void RenderEditableNormalMesh::createGroupBoundingBox()
             m_tria_group_start_index[group_count] = i;
         }
     }
+    resetTriaGroupDirty();
 }
 
 void RenderEditableNormalMesh::clearDisplayData()
@@ -653,6 +655,7 @@ void RenderEditableNormalMesh::clearDisplayData()
     originalMesh()->clearDisplayData();
     clearDisplayEditData();
     markSegmentsGroupDirty();
+    markTriaGroupDirty();
     markRenderDirty();
     markBoxDirty();
 }

@@ -1747,8 +1747,8 @@ bool GLSceneRender::renderNormalMesh(Node* node, NormalMesh* mesh)
 
 bool GLSceneRender::renderVoxel(Node* node, Voxel* voxel)
 {
-    RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)node->renderable();
-    return renderRenderableNormalMesh(node, mesh, voxel);
+    RenderEditableMesh* mesh = (RenderEditableMesh*)node->renderable();
+    return renderRenderableMesh(node, mesh, voxel);
 }
 
 Point4f getColor(float value, const float divisions[], const Point4f colors[])
@@ -2581,6 +2581,8 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
     if (render_data->m_use_vbo) {
         render_data->m_vao.bind();
 
+        float wire_offset = -0.0002f;
+
         /// 透明でないときは先
         if (!m_cond_transparent) {
             /// 暫定 - 法線データ削除による高速化で、シェーダーがかなりぐちゃぐちゃ。。。整理したい
@@ -2593,12 +2595,14 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
             }
 
             if (draw_priority != 0) {
-                m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value   = -0.000001f * (float)draw_priority;
-                float polygon_offset = -0.0005f * (float)draw_priority;
+                // m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
+                float offset_value = -0.0001f * (float)draw_priority;
+                // float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
-                m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+                // m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+
+                wire_offset = offset_value - 0.0001f;
             }
 
             /// Shading表示のとき または ピック描画のとき
@@ -2633,7 +2637,7 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
             }
 
             if (draw_priority != 0) {
-                m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
+                // m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
                 m_cur_shader_program->setUniformValue("direct_offset", false);
                 m_cur_shader_program->setUniformValue("direct_offset_value", 0.0f);
             }
@@ -2689,8 +2693,8 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
 
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
 
-                m_cur_shader_program->setUniformValue("line_offset_value_front", -0.0002f);
-                m_cur_shader_program->setUniformValue("line_offset_value_back", -0.0002f);
+                m_cur_shader_program->setUniformValue("line_offset_value_front", wire_offset);
+                m_cur_shader_program->setUniformValue("line_offset_value_back", wire_offset);
 
                 if (m_voxel_draw_wireframe_color_shape) {
                     /// 形状色
@@ -2791,6 +2795,8 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
     else {
         GLfloat dummyNormal[3] = {0.0f, 0.0f, 1.0f};
 
+        float wire_offset = -0.0002f;
+
         /// 透明でないときは先
         if (!m_cond_transparent) {
             /// 暫定 - 法線データ削除による高速化で、シェーダーがかなりぐちゃぐちゃ。。。整理したい
@@ -2807,12 +2813,14 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
             m_cur_shader_program->setAttributeArray(1, GL_FLOAT, dummyNormal, 3, 0);
 
             if (draw_priority != 0) {
-                m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value   = -0.000001f * (float)draw_priority;
-                float polygon_offset = -0.0005f * (float)draw_priority;
+                // m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
+                float offset_value = -0.0001f * (float)draw_priority;
+                // float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
-                m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+                // m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+
+                wire_offset = offset_value - 0.0001f;
             }
 
             /// Shading表示のとき または ピック描画のとき
@@ -2850,7 +2858,7 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
             m_cur_shader_program->disableAttributeArray(1);
 
             if (draw_priority != 0) {
-                m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
+                // m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
                 m_cur_shader_program->setUniformValue("direct_offset", false);
                 m_cur_shader_program->setUniformValue("direct_offset_value", 0.0f);
             }
@@ -2890,8 +2898,8 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                 m_cur_shader_program->enableAttributeArray(1);
                 m_cur_shader_program->setAttributeArray(1, GL_FLOAT, dummyNormal, 3, 0);
 
-                m_cur_shader_program->setUniformValue("line_offset_value_front", -0.0002f);
-                m_cur_shader_program->setUniformValue("line_offset_value_back", -0.0002f);
+                m_cur_shader_program->setUniformValue("line_offset_value_front", wire_offset);
+                m_cur_shader_program->setUniformValue("line_offset_value_back", wire_offset);
 
                 bool gl_multisample_enabled = glIsEnabled(GL_MULTISAMPLE) ? true : false;
                 bool gl_line_smooth_enabled = glIsEnabled(GL_LINE_SMOOTH) ? true : false;
@@ -3239,6 +3247,8 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
     if (render_data->m_use_vbo) {
         render_data->m_vao.bind();
 
+        float wire_offset = -0.0002f;
+
         /// 透明でないときは先
         if (!m_cond_transparent) {
             /// 暫定 - 法線データ削除による高速化で、シェーダーがかなりぐちゃぐちゃ。。。整理したい
@@ -3252,12 +3262,14 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
             }
 
             if (draw_priority != 0) {
-                m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value   = -0.000001f * (float)draw_priority;
-                float polygon_offset = -0.0005f * (float)draw_priority;
+                // m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
+                float offset_value = -0.0001f * (float)draw_priority;
+                // float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
-                m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+                // m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+
+                wire_offset = offset_value - 0.0001f;
             }
 
             /// Shading表示のとき または ピック描画のとき
@@ -3292,7 +3304,7 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
             }
 
             if (draw_priority != 0) {
-                m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
+                // m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
                 m_cur_shader_program->setUniformValue("direct_offset", false);
                 m_cur_shader_program->setUniformValue("direct_offset_value", 0.0f);
             }
@@ -3348,8 +3360,8 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
 
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
 
-                m_cur_shader_program->setUniformValue("line_offset_value_front", -0.0002f);
-                m_cur_shader_program->setUniformValue("line_offset_value_back", -0.0002f);
+                m_cur_shader_program->setUniformValue("line_offset_value_front", wire_offset);
+                m_cur_shader_program->setUniformValue("line_offset_value_back", wire_offset);
 
                 if (m_voxel_draw_wireframe_color_shape) {
                     /// 形状色
@@ -3449,6 +3461,8 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
         render_data->m_vao.release();
     }
     else {
+        float wire_offset = -0.0002f;
+
         /// 透明でないときは先
         if (!m_cond_transparent) {
             /// 暫定 - 法線データ削除による高速化で、シェーダーがかなりぐちゃぐちゃ。。。整理したい
@@ -3466,12 +3480,14 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
             m_cur_shader_program->setAttributeArray(1, GL_FLOAT, &vertices[0].m_normal, 3, sizeof(Vertexf));
 
             if (draw_priority != 0) {
-                m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value   = -0.000001f * (float)draw_priority;
-                float polygon_offset = -0.0005f * (float)draw_priority;
+                // m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
+                float offset_value = -0.0001f * (float)draw_priority;
+                // float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
-                m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+                // m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
+
+                wire_offset = offset_value - 0.0001f;
             }
 
             /// Shading表示のとき または ピック描画のとき
@@ -3509,7 +3525,7 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
             m_cur_shader_program->disableAttributeArray(1);
 
             if (draw_priority != 0) {
-                m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
+                // m_gl_function->glDisable(GL_POLYGON_OFFSET_FILL);
                 m_cur_shader_program->setUniformValue("direct_offset", false);
                 m_cur_shader_program->setUniformValue("direct_offset_value", 0.0f);
             }
@@ -3549,8 +3565,8 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                 m_cur_shader_program->enableAttributeArray(1);
                 m_cur_shader_program->setAttributeArray(1, GL_FLOAT, &vertices[0].m_normal, 3, sizeof(Vertexf));
 
-                m_cur_shader_program->setUniformValue("line_offset_value_front", -0.0002f);
-                m_cur_shader_program->setUniformValue("line_offset_value_back", -0.0002f);
+                m_cur_shader_program->setUniformValue("line_offset_value_front", wire_offset);
+                m_cur_shader_program->setUniformValue("line_offset_value_back", wire_offset);
 
                 bool gl_multisample_enabled = glIsEnabled(GL_MULTISAMPLE) ? true : false;
                 bool gl_line_smooth_enabled = glIsEnabled(GL_LINE_SMOOTH) ? true : false;

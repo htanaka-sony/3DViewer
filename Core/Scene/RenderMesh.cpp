@@ -341,11 +341,9 @@ void RenderEditableMesh::updateBoundingBox()
         }
     }
     else {
-        for (const auto& vertex : originalMesh()->m_vertices) {
-            m_bbox.expandBy(vertex);
-        }
+        m_bbox = originalMesh()->boundingBox();
     }
-    createGroupBoundingBox();
+    // createGroupBoundingBox();
     resetBoxDirty();
 }
 
@@ -394,6 +392,10 @@ void RenderEditableMesh::createDisplaySegmentsGroupData()
 
 void RenderEditableMesh::createGroupBoundingBox()
 {
+    if (!isTriaGroupDirty()) {
+        return;
+    }
+
     const auto& vertex_list = isEnableEditDisplayData() ? displayEditVertices() : displayVertices();
     const auto& index_list  = isEnableEditDisplayData() ? displayEditIndices() : displayIndices();
 
@@ -411,6 +413,8 @@ void RenderEditableMesh::createGroupBoundingBox()
             m_tria_group_start_index[group_count] = i;
         }
     }
+
+    resetTriaGroupDirty();
 }
 
 void RenderEditableMesh::clearDisplayData()
@@ -418,6 +422,7 @@ void RenderEditableMesh::clearDisplayData()
     originalMesh()->clearDisplayData();
     clearDisplayEditData();
     markSegmentsGroupDirty();
+    markTriaGroupDirty();
     markRenderDirty();
     markBoxDirty();
 }
