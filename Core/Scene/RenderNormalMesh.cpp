@@ -85,6 +85,31 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     int         segs  = 1;
     if (tol > 0.0f && r_ref > 0.0f) {
         segs = std::max(segs, (int)std::ceil((float)M_PI / std::sqrt(2.0f * tol / r_ref)));
+        segs = std::min(segs, 64);    /// 過剰分割を防ぐ上限
+    }
+
+    /// sin/cos テーブルを事前計算して使い回す
+    /// angle[k] = k * (π/2) / segs, k = 0..segs
+    std::vector<float> cosTab(segs + 1), sinTab(segs + 1);
+    {
+        const float step = (float)M_PI_2 / (float)segs;
+        for (int k = 0; k <= segs; k++) {
+            cosTab[k] = std::cos((float)k * step);
+            sinTab[k] = std::sin((float)k * step);
+        }
+        /// 端点は丸め誤差を排除して厳密値を設定
+        cosTab[0]    = 1.0f;
+        sinTab[0]    = 0.0f;
+        cosTab[segs] = 0.0f;
+        sinTab[segs] = 1.0f;
+    }
+
+    /// 頂点・インデックスバッファを事前確保
+    /// 6面: 6×4頂点, 12辺: 12×segs×4頂点, 8コーナー: 8×segs²×4頂点
+    {
+        const int nv = 24 + 48 * segs + 32 * segs * segs;
+        m_vertices.reserve(nv);
+        m_indices.reserve(nv / 4 * 6);    /// quad ごとに6インデックス (4頂点で2三角形)
     }
 
     /// 楕円弧の法線: 楕円の陰関数 ((x-cx)/rx)^2 + ((y-cy)/ry)^2 = 1 の勾配方向
@@ -97,13 +122,6 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     };
     auto ellipseNormYZ = [&](float cos_v, float sin_v, float dy, float dz) -> Point3f {
         return Point3f(0.0f, dy * cos_v / ry, dz * sin_v / rz).normalized();
-    };
-
-    /// 楕円球面コーナーの法線: 楕円球面の陰関数の勾配方向
-    /// P(u,v) = (cx+dx*rx*sin(u)*cos(v), cy+dy*ry*sin(u)*sin(v), cz+dz*rz*cos(u))
-    auto sphereNorm = [&](float u, float v, float dx, float dy, float dz) -> Point3f {
-        return Point3f(dx * std::sin(u) * std::cos(v) / rx, dy * std::sin(u) * std::sin(v) / ry, dz * std::cos(u) / rz)
-            .normalized();
     };
 
     // ---- 6平面フェース ----
@@ -138,10 +156,8 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
             const float dy   = sy ? +1.0f : -1.0f;
             const bool  flip = (dx * dy < 0.0f);
             for (int k = 0; k < segs; k++) {
-                const float   t0 = (float)k * (float)M_PI_2 / segs;
-                const float   t1 = (float)(k + 1) * (float)M_PI_2 / segs;
-                const float   c0 = std::cos(t0), s0 = std::sin(t0);
-                const float   c1 = std::cos(t1), s1 = std::sin(t1);
+                const float   c0 = cosTab[k], s0 = sinTab[k];
+                const float   c1 = cosTab[k + 1], s1 = sinTab[k + 1];
                 const float   px0 = cx + dx * rx * c0, py0 = cy + dy * ry * s0;
                 const float   px1 = cx + dx * rx * c1, py1 = cy + dy * ry * s1;
                 const Point3f n0   = ellipseNormXY(c0, s0, dx, dy);
@@ -171,10 +187,8 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
             const float dz   = sz ? +1.0f : -1.0f;
             const bool  flip = (dx * dz < 0.0f);
             for (int k = 0; k < segs; k++) {
-                const float   u0 = (float)k * (float)M_PI_2 / segs;
-                const float   u1 = (float)(k + 1) * (float)M_PI_2 / segs;
-                const float   c0 = std::cos(u0), s0 = std::sin(u0);
-                const float   c1 = std::cos(u1), s1 = std::sin(u1);
+                const float   c0 = cosTab[k], s0 = sinTab[k];
+                const float   c1 = cosTab[k + 1], s1 = sinTab[k + 1];
                 const float   px0 = cx + dx * rx * c0, pz0 = cz + dz * rz * s0;
                 const float   px1 = cx + dx * rx * c1, pz1 = cz + dz * rz * s1;
                 const Point3f n0   = ellipseNormXZ(c0, s0, dx, dz);
@@ -204,10 +218,8 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
             const float dz   = sz ? +1.0f : -1.0f;
             const bool  flip = (dy * dz < 0.0f);
             for (int k = 0; k < segs; k++) {
-                const float   v0 = (float)k * (float)M_PI_2 / segs;
-                const float   v1 = (float)(k + 1) * (float)M_PI_2 / segs;
-                const float   c0 = std::cos(v0), s0 = std::sin(v0);
-                const float   c1 = std::cos(v1), s1 = std::sin(v1);
+                const float   c0 = cosTab[k], s0 = sinTab[k];
+                const float   c1 = cosTab[k + 1], s1 = sinTab[k + 1];
                 const float   py0 = cy + dy * ry * c0, pz0 = cz + dz * rz * s0;
                 const float   py1 = cy + dy * ry * c1, pz1 = cz + dz * rz * s1;
                 const Point3f n0   = ellipseNormYZ(c0, s0, dy, dz);
@@ -232,38 +244,47 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     ///           cz + dz*rz*cos(u))
     /// 法線は楕円球面の陰関数の勾配:
     ///   (dx*sin(u)*cos(v)/rx, dy*sin(u)*sin(v)/ry, dz*cos(u)/rz) を正規化
+    ///
+    /// 格子点を事前計算して重複演算を排除 (各 (ui,vi) は隣接 quad から最大4回参照される)
+    const int              sv = segs + 1;
+    std::vector<Point3f>   gridPt(sv * sv), gridNrm(sv * sv);
     for (int sx = 0; sx < 2; sx++) {
         for (int sy = 0; sy < 2; sy++) {
             for (int sz = 0; sz < 2; sz++) {
-                const float cx  = x0 + (sx ? W - rx : rx);
-                const float cy  = y0 + (sy ? H - ry : ry);
-                const float cz  = z0 + (sz ? D - rz : rz);
-                const float dx  = sx ? +1.0f : -1.0f;
-                const float dy  = sy ? +1.0f : -1.0f;
-                const float dz  = sz ? +1.0f : -1.0f;
-                auto        spt = [&](int ui, int vi) -> Point3f {
-                    const float u = (float)ui * (float)M_PI_2 / segs;
-                    const float v = (float)vi * (float)M_PI_2 / segs;
-                    return {cx + dx * rx * std::sin(u) * std::cos(v), cy + dy * ry * std::sin(u) * std::sin(v),
-                            cz + dz * rz * std::cos(u)};
-                };
-                auto snrm = [&](int ui, int vi) -> Point3f {
-                    const float u = (float)ui * (float)M_PI_2 / segs;
-                    const float v = (float)vi * (float)M_PI_2 / segs;
-                    return sphereNorm(u, v, dx, dy, dz);
-                };
+                const float cx = x0 + (sx ? W - rx : rx);
+                const float cy = y0 + (sy ? H - ry : ry);
+                const float cz = z0 + (sz ? D - rz : rz);
+                const float dx = sx ? +1.0f : -1.0f;
+                const float dy = sy ? +1.0f : -1.0f;
+                const float dz = sz ? +1.0f : -1.0f;
+
+                /// 格子点と法線を一括計算
+                for (int ui = 0; ui <= segs; ui++) {
+                    const float su = sinTab[ui], cu = cosTab[ui];
+                    for (int vi = 0; vi <= segs; vi++) {
+                        const float       cv  = cosTab[vi], sv_ = sinTab[vi];
+                        const int         idx = ui * sv + vi;
+                        gridPt[idx]           = {cx + dx * rx * su * cv, cy + dy * ry * su * sv_, cz + dz * rz * cu};
+                        gridNrm[idx] = Point3f(dx * su * cv / rx, dy * su * sv_ / ry, dz * cu / rz).normalized();
+                    }
+                }
+
                 /// マイナス符号の個数が奇数のとき（sx+sy+sz が偶数: 0,2 → マイナス1つまたは3つ）
                 /// d/du×d/dv が内向きになるので巻き順を反転して外向き法線を保つ
                 const bool flip = ((sx + sy + sz) % 2 == 0);
                 for (int ui = 0; ui < segs; ui++) {
                     for (int vi = 0; vi < segs; vi++) {
+                        const int i00 = ui * sv + vi;
+                        const int i01 = ui * sv + vi + 1;
+                        const int i10 = (ui + 1) * sv + vi;
+                        const int i11 = (ui + 1) * sv + vi + 1;
                         if (flip) {
-                            addQuadN(spt(ui, vi), snrm(ui, vi), spt(ui, vi + 1), snrm(ui, vi + 1), spt(ui + 1, vi + 1),
-                                     snrm(ui + 1, vi + 1), spt(ui + 1, vi), snrm(ui + 1, vi));
+                            addQuadN(gridPt[i00], gridNrm[i00], gridPt[i01], gridNrm[i01], gridPt[i11], gridNrm[i11],
+                                     gridPt[i10], gridNrm[i10]);
                         }
                         else {
-                            addQuadN(spt(ui, vi), snrm(ui, vi), spt(ui + 1, vi), snrm(ui + 1, vi), spt(ui + 1, vi + 1),
-                                     snrm(ui + 1, vi + 1), spt(ui, vi + 1), snrm(ui, vi + 1));
+                            addQuadN(gridPt[i00], gridNrm[i00], gridPt[i10], gridNrm[i10], gridPt[i11], gridNrm[i11],
+                                     gridPt[i01], gridNrm[i01]);
                         }
                     }
                 }
