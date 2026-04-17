@@ -47,43 +47,6 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     rz             = std::min(rz, D * 0.5f);
     const float x0 = mn.x(), y0 = mn.y(), z0 = mn.z();
 
-    /// 頂点・インデックスバッファへの書き込みカーソル (resize後のインデックス書き込みに使用)
-    int vIdx = 0;
-    int iIdx = 0;
-
-    /// 各頂点に個別の法線を設定してquadを追加
-    /// Triangle1: p0,p1,p2  Triangle2: p2,p3,p0
-    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
-                        const Point3f& n2, const Point3f& p3, const Point3f& n3) {
-        const unsigned int base    = (unsigned int)vIdx;
-        m_vertices[vIdx++]         = {p0, n0};
-        m_vertices[vIdx++]         = {p1, n1};
-        m_vertices[vIdx++]         = {p2, n2};
-        m_vertices[vIdx++]         = {p3, n3};
-        m_indices[iIdx++]          = base + 0;
-        m_indices[iIdx++]          = base + 1;
-        m_indices[iIdx++]          = base + 2;
-        m_indices[iIdx++]          = base + 2;
-        m_indices[iIdx++]          = base + 3;
-        m_indices[iIdx++]          = base + 0;
-
-        /*
-        if (m_create_section_line) {
-            m_segments_indices.emplace_back(base + 0);
-            m_segments_indices.emplace_back(base + 1);
-            m_segments_indices.emplace_back(base + 1);
-            m_segments_indices.emplace_back(base + 2);
-            m_segments_indices.emplace_back(base + 2);
-            m_segments_indices.emplace_back(base + 3);
-            m_segments_indices.emplace_back(base + 3);
-            m_segments_indices.emplace_back(base + 0);
-        }*/
-    };
-
-    /// 全頂点に同一の法線を設定してquadを追加（平面フェース用）
-    auto addQuadFlat = [&](const Point3f& p0, const Point3f& p1, const Point3f& p2, const Point3f& p3,
-                           const Point3f& norm) { addQuadN(p0, norm, p1, norm, p2, norm, p3, norm); };
-
     /// コーナーあたりの弧分割数を許容誤差から計算 (chord error = r*(1-cos(π/N)) ≤ tol)
     const float r_ref = std::max(rx, std::max(ry, rz));
     int         segs  = 1;
@@ -109,12 +72,47 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     }
 
     /// 頂点・インデックスバッファを事前生成
-    /// 6面: 6×4頂点, 12辺: 12×segs×4頂点, 8コーナー: 8×segs²×4頂点
-    {
-        const int nv = 24 + 48 * segs + 32 * segs * segs;
-        m_vertices.resize(nv);
-        m_indices.resize(nv / 4 * 6);    /// quad ごとに6インデックス (4頂点で2三角形)
-    }
+    /// 6面×4頂点=24, 12辺×segs×4頂点=48*segs, 8コーナー×segs²×4頂点=32*segs²
+    const int nv = 24 + 48 * segs + 32 * segs * segs;
+    m_vertices.resize(nv);
+    m_indices.resize(nv / 4 * 6);    /// quad ごとに6インデックス (4頂点で2三角形)
+
+    /// 書き込みカーソル: resize 済みバッファへのインデックスアクセスに使用
+    int vIdx = 0;
+    int iIdx = 0;
+
+    /// 各頂点に個別の法線を設定してquadを追加
+    /// Triangle1: p0,p1,p2  Triangle2: p2,p3,p0
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
+                        const Point3f& n2, const Point3f& p3, const Point3f& n3) {
+        const unsigned int base = (unsigned int)vIdx;
+        m_vertices[vIdx] = {p0, n0}; ++vIdx;
+        m_vertices[vIdx] = {p1, n1}; ++vIdx;
+        m_vertices[vIdx] = {p2, n2}; ++vIdx;
+        m_vertices[vIdx] = {p3, n3}; ++vIdx;
+        m_indices[iIdx] = base + 0; ++iIdx;
+        m_indices[iIdx] = base + 1; ++iIdx;
+        m_indices[iIdx] = base + 2; ++iIdx;
+        m_indices[iIdx] = base + 2; ++iIdx;
+        m_indices[iIdx] = base + 3; ++iIdx;
+        m_indices[iIdx] = base + 0; ++iIdx;
+
+        /*
+        if (m_create_section_line) {
+            m_segments_indices.emplace_back(base + 0);
+            m_segments_indices.emplace_back(base + 1);
+            m_segments_indices.emplace_back(base + 1);
+            m_segments_indices.emplace_back(base + 2);
+            m_segments_indices.emplace_back(base + 2);
+            m_segments_indices.emplace_back(base + 3);
+            m_segments_indices.emplace_back(base + 3);
+            m_segments_indices.emplace_back(base + 0);
+        }*/
+    };
+
+    /// 全頂点に同一の法線を設定してquadを追加（平面フェース用）
+    auto addQuadFlat = [&](const Point3f& p0, const Point3f& p1, const Point3f& p2, const Point3f& p3,
+                           const Point3f& norm) { addQuadN(p0, norm, p1, norm, p2, norm, p3, norm); };
 
     /// 楕円弧の法線: 楕円の陰関数 ((x-cx)/rx)^2 + ((y-cy)/ry)^2 = 1 の勾配方向
     /// 各軸ペアに対して正規化した法線ベクトルを返す
