@@ -17,7 +17,7 @@ protected:
 
 public:
     void createBoxShape(const BoundingBox3f& box);
-    void createBoxTapper(const BoundingBox3f& box, float taperDistance);
+    void createBoxTaper(const BoundingBox3f& box, float taperDistance);
 
 public:
     virtual void          updateBoundingBox();

@@ -55,17 +55,17 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     /// Triangle1: p0,p1,p2  Triangle2: p2,p3,p0
     auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
                         const Point3f& n2, const Point3f& p3, const Point3f& n3) {
-        const unsigned int base    = (unsigned int)vIdx;
-        m_vertices[vIdx++]         = {p0, n0};
-        m_vertices[vIdx++]         = {p1, n1};
-        m_vertices[vIdx++]         = {p2, n2};
-        m_vertices[vIdx++]         = {p3, n3};
-        m_indices[iIdx++]          = base + 0;
-        m_indices[iIdx++]          = base + 1;
-        m_indices[iIdx++]          = base + 2;
-        m_indices[iIdx++]          = base + 2;
-        m_indices[iIdx++]          = base + 3;
-        m_indices[iIdx++]          = base + 0;
+        const unsigned int base = (unsigned int)vIdx;
+        m_vertices[vIdx++]      = {p0, n0};
+        m_vertices[vIdx++]      = {p1, n1};
+        m_vertices[vIdx++]      = {p2, n2};
+        m_vertices[vIdx++]      = {p3, n3};
+        m_indices[iIdx++]       = base + 0;
+        m_indices[iIdx++]       = base + 1;
+        m_indices[iIdx++]       = base + 2;
+        m_indices[iIdx++]       = base + 2;
+        m_indices[iIdx++]       = base + 3;
+        m_indices[iIdx++]       = base + 0;
 
         /*
         if (m_create_section_line) {
@@ -89,7 +89,7 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     int         segs  = 1;
     if (tol > 0.0f && r_ref > 0.0f) {
         segs = std::max(segs, (int)std::ceil((float)M_PI / std::sqrt(2.0f * tol / r_ref)));
-        segs = std::min(segs, 64);    /// 過剰分割を防ぐ上限 (segs=64 で約 32×64×64×8=1M 頂点規模)
+        // segs = std::min(segs, 64);    /// 過剰分割を防ぐ上限 (segs=64 で約 32×64×64×8=1M 頂点規模)
     }
 
     /// sin/cos テーブルを事前計算して使い回す
@@ -267,10 +267,10 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
                 for (int ui = 0; ui <= segs; ui++) {
                     const float su = sinTab[ui], cu = cosTab[ui];
                     for (int vi = 0; vi <= segs; vi++) {
-                        const float      cosV = cosTab[vi], sinV = sinTab[vi];
-                        const int        idx  = ui * gridStride + vi;
-                        gridPt[idx]           = {cx + dx * rx * su * cosV, cy + dy * ry * su * sinV, cz + dz * rz * cu};
-                        gridNrm[idx] = Point3f(dx * su * cosV / rx, dy * su * sinV / ry, dz * cu / rz).normalized();
+                        const float cosV = cosTab[vi], sinV = sinTab[vi];
+                        const int   idx = ui * gridStride + vi;
+                        gridPt[idx]     = {cx + dx * rx * su * cosV, cy + dy * ry * su * sinV, cz + dz * rz * cu};
+                        gridNrm[idx]    = Point3f(dx * su * cosV / rx, dy * su * sinV / ry, dz * cu / rz).normalized();
                     }
                 }
 
@@ -300,10 +300,11 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     /// ---- ワイヤーフレーム (m_segments_indices) ----
     /// 頂点は上記で生成済みのものをそのままインデックスで参照する。新頂点は追加しない。
     if (m_create_section_line) {
+        int sIdx = 0;
         /// 線分1本分のインデックスペアを追加するヘルパー
         auto addSeg = [&](unsigned int a, unsigned int b) {
-            m_segments_indices.emplace_back(a);
-            m_segments_indices.emplace_back(b);
+            m_segments_indices[sIdx++] = a;
+            m_segments_indices[sIdx++] = b;
         };
 
         /// 暫定:固定値
@@ -311,7 +312,7 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
 
         /// m_segments_indices の容量を事前確保
         /// Part1: 24線分; Part2: 24弧×segs線分; Part3: 8コーナー×wire_segs×2方向×segs線分
-        m_segments_indices.reserve(m_segments_indices.size() + 2 * (24 + 24 * segs + 16 * wire_segs * segs));
+        m_segments_indices.resize(m_segments_indices.size() + 2 * (24 + 24 * segs + 16 * wire_segs * segs));
 
         /// ---- Part 1: 平面フェースの境界直線 (各フェース4辺 × 6面 = 24本) ----
         /// 頂点インデックス 0-23 は6面分の平面フェース頂点

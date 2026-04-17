@@ -14,10 +14,32 @@ using namespace Core;
 
 RENDER_NAMESPACE_BEGIN
 
+class RENDER_EXPORT ManagedOpenGLBuffer : public QOpenGLBuffer {
+public:
+    ManagedOpenGLBuffer(Type type = VertexBuffer) : QOpenGLBuffer(type), m_size(0) {}
+
+    void allocate(const void* data, int count)
+    {
+        QOpenGLBuffer::allocate(data, count);
+        m_size = count;
+    }
+
+    void allocate(int count)
+    {
+        QOpenGLBuffer::allocate(count);
+        m_size = count;
+    }
+
+    int size() const { return m_size; }
+
+private:
+    int m_size;
+};
+
 class RENDER_EXPORT RenderData {
 public:
-    QOpenGLBuffer            m_vbo;        /// 頂点バッファ
-    QOpenGLBuffer            m_ibo;        /// インデックスバッファ
+    ManagedOpenGLBuffer      m_vbo;        /// 頂点バッファ
+    ManagedOpenGLBuffer      m_ibo;        /// インデックスバッファ
     QOpenGLVertexArrayObject m_vao;        /// VAO
     bool                     m_use_vbo;    /// VBOを使用するかどうか
 

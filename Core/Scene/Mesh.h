@@ -13,7 +13,7 @@ protected:
 
 public:
     void createBoxShape(const BoundingBox3f& box);
-    void createBoxTapper(const BoundingBox3f& box, float taperDistance);
+    void createBoxTaper(const BoundingBox3f& box, float taperDistance);
 };
 
 CORE_NAMESPACE_END

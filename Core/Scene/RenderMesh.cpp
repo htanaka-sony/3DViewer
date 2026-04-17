@@ -127,7 +127,7 @@ void RenderMesh::createBoxShape(const BoundingBox3f& box)
     markBoxDirty();
 }
 
-void RenderMesh::createBoxTapper(const BoundingBox3f& box, float taperDistance)
+void RenderMesh::createBoxTaper(const BoundingBox3f& box, float taperDistance)
 {
     m_vertices.clear();
     m_indices.clear();
