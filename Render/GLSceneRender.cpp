@@ -1215,6 +1215,20 @@ const GLSceneRender::Float3x3f& GLSceneRender::curNormalMatrix() const
     return m_stack_normal_matrix.back();
 }
 
+float GLSceneRender::drawPriorityOffsetScale() const
+{
+    // ズームレベルに応じてオフセット量をスケールする
+    // 正投影：orthoサイズ（初期値10）に比例、透視投影：カメラ距離に比例
+    // 基準スケール係数は 1e-5 で、初期 ortho_size=10 のとき従来の 1e-4 と一致する
+    if (m_scene_view->isPerspective()) {
+        const float camera_dist = (m_scene_view->cameraEye() - m_scene_view->cameraTarget()).length();
+        return camera_dist * 1.0e-5f;
+    }
+    else {
+        return m_scene_view->projOrthoSize() * 1.0e-5f;
+    }
+}
+
 void GLSceneRender::renderCondition(bool transparent, bool pick_render, bool text_render, bool drag, PickSnap snap)
 {
     m_cond_transparent = transparent;
@@ -2581,7 +2595,7 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
     if (render_data->m_use_vbo) {
         render_data->m_vao.bind();
 
-        float wire_offset = -0.0002f;
+        float wire_offset = -2.0f * drawPriorityOffsetScale();
 
         /// 透明でないときは先
         if (!m_cond_transparent) {
@@ -2596,13 +2610,14 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
 
             if (draw_priority != 0) {
                 // m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value = -0.0001f * (float)draw_priority;
+                float offset_scale = drawPriorityOffsetScale();
+                float offset_value = -offset_scale * (float)draw_priority;
                 // float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
                 // m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
 
-                wire_offset = offset_value - 0.0001f;
+                wire_offset = offset_value - offset_scale;
             }
 
             /// Shading表示のとき または ピック描画のとき
@@ -2795,7 +2810,7 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
     else {
         GLfloat dummyNormal[3] = {0.0f, 0.0f, 1.0f};
 
-        float wire_offset = -0.0002f;
+        float wire_offset = -2.0f * drawPriorityOffsetScale();
 
         /// 透明でないときは先
         if (!m_cond_transparent) {
@@ -2814,13 +2829,14 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
 
             if (draw_priority != 0) {
                 // m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value = -0.0001f * (float)draw_priority;
+                float offset_scale = drawPriorityOffsetScale();
+                float offset_value = -offset_scale * (float)draw_priority;
                 // float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
                 // m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
 
-                wire_offset = offset_value - 0.0001f;
+                wire_offset = offset_value - offset_scale;
             }
 
             /// Shading表示のとき または ピック描画のとき
@@ -3247,7 +3263,7 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
     if (render_data->m_use_vbo) {
         render_data->m_vao.bind();
 
-        float wire_offset = -0.0002f;
+        float wire_offset = -2.0f * drawPriorityOffsetScale();
 
         /// 透明でないときは先
         if (!m_cond_transparent) {
@@ -3263,13 +3279,14 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
 
             if (draw_priority != 0) {
                 // m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value = -0.0001f * (float)draw_priority;
+                float offset_scale = drawPriorityOffsetScale();
+                float offset_value = -offset_scale * (float)draw_priority;
                 // float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
                 // m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
 
-                wire_offset = offset_value - 0.0001f;
+                wire_offset = offset_value - offset_scale;
             }
 
             /// Shading表示のとき または ピック描画のとき
@@ -3461,7 +3478,7 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
         render_data->m_vao.release();
     }
     else {
-        float wire_offset = -0.0002f;
+        float wire_offset = -2.0f * drawPriorityOffsetScale();
 
         /// 透明でないときは先
         if (!m_cond_transparent) {
@@ -3481,13 +3498,14 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
 
             if (draw_priority != 0) {
                 // m_gl_function->glEnable(GL_POLYGON_OFFSET_FILL);
-                float offset_value = -0.0001f * (float)draw_priority;
+                float offset_scale = drawPriorityOffsetScale();
+                float offset_value = -offset_scale * (float)draw_priority;
                 // float polygon_offset = -0.0005f * (float)draw_priority;
                 m_cur_shader_program->setUniformValue("direct_offset", true);
                 m_cur_shader_program->setUniformValue("direct_offset_value", offset_value);
                 // m_gl_function->glPolygonOffset(polygon_offset, polygon_offset);
 
-                wire_offset = offset_value - 0.0001f;
+                wire_offset = offset_value - offset_scale;
             }
 
             /// Shading表示のとき または ピック描画のとき

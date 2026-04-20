@@ -230,6 +230,8 @@ protected:
     void pushMatrix(const Matrix4x4f& matrix = Matrix4x4f());
     void popMatrix();
 
+    float drawPriorityOffsetScale() const;
+
     const Matrix4x4f& curPathMatrix() const;
     const Float3x3f&  curNormalMatrix() const;
 
