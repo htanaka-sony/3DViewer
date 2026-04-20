@@ -1313,6 +1313,41 @@ bool GLSceneRender::renderScene()
     return true;
 }
 
+bool GLSceneRender::isBoxTinyOnScreen(const BoundingBox3f& bbox, const Matrix4x4f& path_matrix) const
+{
+    if (m_min_render_pixel_size <= 0 || !bbox.valid()) {
+        return false;
+    }
+
+    const Matrix4x4f full_mvp = m_scene_view->mvpMatrix() * path_matrix;
+
+    float screen_min_x = FLT_MAX;
+    float screen_min_y = FLT_MAX;
+    float screen_max_x = -FLT_MAX;
+    float screen_max_y = -FLT_MAX;
+
+    for (int i = 0; i < 8; ++i) {
+        const Point3f& c    = bbox.corner(i);
+        Point4f        clip = full_mvp * Point4f(c.x(), c.y(), c.z(), 1.0f);
+        if (clip.w() <= 0.0f) {
+            return false;    // A corner is behind the camera; do not cull
+        }
+        const float ndcx = clip.x() / clip.w();
+        const float ndcy = clip.y() / clip.w();
+        const float sx   = (ndcx + 1.0f) * static_cast<float>(m_scene_view->viewPortWidth()) * 0.5f;
+        const float sy   = (1.0f - ndcy) * static_cast<float>(m_scene_view->viewPortHeight()) * 0.5f;
+        if (sx < screen_min_x) screen_min_x = sx;
+        if (sx > screen_max_x) screen_max_x = sx;
+        if (sy < screen_min_y) screen_min_y = sy;
+        if (sy > screen_max_y) screen_max_y = sy;
+    }
+
+    const float pixel_width  = screen_max_x - screen_min_x;
+    const float pixel_height = screen_max_y - screen_min_y;
+    return pixel_width < static_cast<float>(m_min_render_pixel_size)
+        && pixel_height < static_cast<float>(m_min_render_pixel_size);
+}
+
 bool GLSceneRender::renderNode(Node* node)
 {
     if (!node->isVisible()) {
@@ -1322,17 +1357,18 @@ bool GLSceneRender::renderNode(Node* node)
     /// Matrix設定
     bool        push_matrix = false;
     const auto& matrix      = node->matrix();
-    if (!matrix.isIdentity()) {
-        if (!m_scene_view->isBoxInFrustum(node->boundingBox(), curPathMatrix() * matrix)) {
+    {
+        const Matrix4x4f effective_path = matrix.isIdentity() ? curPathMatrix() : curPathMatrix() * matrix;
+        if (!m_scene_view->isBoxInFrustum(node->boundingBox(), effective_path)) {
             return true;
         }
+        if (isBoxTinyOnScreen(node->boundingBox(), effective_path)) {
+            return true;
+        }
+    }
+    if (!matrix.isIdentity()) {
         pushMatrix(matrix);
         push_matrix = true;
-    }
-    else {
-        if (!m_scene_view->isBoxInFrustum(node->boundingBox(), curPathMatrix())) {
-            return true;
-        }
     }
 
     /// 以降はreturn しない

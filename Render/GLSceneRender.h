@@ -185,6 +185,9 @@ public:
     void setVoxelLineSmooth(bool smooth) { m_line_smooth = smooth; }
     bool isVoxelLineSmooth() const { return m_line_smooth; }
 
+    void setMinRenderPixelSize(int pixels) { m_min_render_pixel_size = pixels; }
+    int  minRenderPixelSize() const { return m_min_render_pixel_size; }
+
 protected:
     struct Float3x3f {
         float m_matrix[3][3];
@@ -257,6 +260,8 @@ protected:
 
     bool is2DTexturePriority();
 
+    bool isBoxTinyOnScreen(const BoundingBox3f& bbox, const Matrix4x4f& path_matrix) const;
+
 protected:
     RefPtr<SceneView> m_scene_view;
 
@@ -327,6 +332,9 @@ protected:
 
     float m_dpi_scale  = 1.0f;
     int   m_pick_pixel = 5.0f;
+
+    /// 微小オブジェクトのカリング閾値（ピクセル）。0以下は無効
+    int m_min_render_pixel_size = 0;
 
     /// Shading + Wireframe設定
     // bool    m_voxel_draw_shading               = true;
