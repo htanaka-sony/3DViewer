@@ -19,14 +19,8 @@ void main() {
         gl_Position = mvp_matrix * vec4(position, 1.0);
     }else{
         vec4 world_pos = m_matrix * vec4(position, 1.0);
-        if (is_perspective){
-            vec3 view_dir = normalize(world_pos.xyz - camera_pos);
-            vec3 offset_pos = world_pos.xyz + direct_offset_value * view_dir;
-            gl_Position = vp_matrix * vec4(offset_pos, 1.0);
-        }
-        else{
-            vec3 offset_pos = world_pos.xyz + direct_offset_value * camera_dir;
-            gl_Position = vp_matrix * vec4(offset_pos, 1.0);
-        }
+        vec3 world_normal = normalize(nrm_matrix * normal);
+        vec3 offset_pos = world_pos.xyz + direct_offset_value * world_normal;
+        gl_Position = vp_matrix * vec4(offset_pos, 1.0);
     }
 }
