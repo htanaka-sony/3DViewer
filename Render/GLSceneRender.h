@@ -366,6 +366,9 @@ protected:
     /// 描画調整（イメージ出力など）
     bool m_line_smooth            = true;
     bool m_show_coordinate_system = true;
+
+    /// セグメントシェーダーの行列キャッシュ（フレーム内でpushMatrix/popMatrixがあった場合にtrue）
+    bool m_segment_shader_matrix_dirty = true;
 };
 
 RENDER_NAMESPACE_END

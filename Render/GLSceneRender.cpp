@@ -286,7 +286,8 @@ void GLSceneRender::paintGL(int area[4])
         m_paint_segment_program->setUniformValue("light_color", 1.0f, 1.0f, 1.0f);    /// 光源の色（白色）
         m_paint_segment_program->setUniformValue("screen_size", (float)m_scene_view->viewPortWidth(),
                                                  (float)m_scene_view->viewPortHeight());
-        m_paint_segment_program->setUniformValue("disable_light", false);
+        m_paint_segment_program->setUniformValue("disable_light", true);
+        m_paint_segment_program->setUniformValue("transparency", 1.0f);
         m_paint_segment_program->setUniformValue("point_display", false);
         m_paint_segment_program->setUniformValue("point_display_line", false);
         m_paint_segment_program->setUniformValue("point_size", (float)(8.0f * m_dpi_scale));
@@ -325,6 +326,19 @@ void GLSceneRender::paintGL(int area[4])
 
         /// Matrix
         pushMatrix();
+
+        /// ラインスムース・マルチサンプル状態をフレーム単位で1回だけ設定
+        if (m_line_smooth) {
+            glEnable(GL_LINE_SMOOTH);
+            glEnable(GL_MULTISAMPLE);
+        }
+        else {
+            glDisable(GL_LINE_SMOOTH);
+            glDisable(GL_MULTISAMPLE);
+        }
+
+        /// セグメントシェーダー行列キャッシュをフレーム開始時にリセット
+        m_segment_shader_matrix_dirty = true;
 
         /// Render
         renderScene();
@@ -1178,6 +1192,7 @@ void GLSceneRender::pushMatrix(const Matrix4x4f& matrix)
         m_stack_mv_matrix.emplace_back(cur_mv_matrix);
         m_stack_m_matrix.emplace_back(cur_m_matrix);
         m_stack_normal_matrix.emplace_back(normalMatrix);
+        m_segment_shader_matrix_dirty = true;
     }
 }
 
@@ -1196,6 +1211,7 @@ void GLSceneRender::popMatrix()
                                               reinterpret_cast<const GLfloat(*)[4]>(m_stack_m_matrix.back().ptr()));
         m_cur_shader_program->setUniformValue("nrm_matrix", m_stack_normal_matrix.back().m_matrix);
     }
+    m_segment_shader_matrix_dirty = true;
 }
 
 const Matrix4x4f& GLSceneRender::curPathMatrix() const
@@ -2705,16 +2721,10 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                     current_shader->release();
                     m_cur_shader_program = m_paint_segment_program;
                     m_cur_shader_program->bind();
-                    applyMatrix();
-                }
-
-                if (m_line_smooth) {
-                    glEnable(GL_LINE_SMOOTH);
-                    glEnable(GL_MULTISAMPLE);
-                }
-                else {
-                    glDisable(GL_LINE_SMOOTH);
-                    glDisable(GL_MULTISAMPLE);
+                    if (m_segment_shader_matrix_dirty) {
+                        applyMatrix();
+                        m_segment_shader_matrix_dirty = false;
+                    }
                 }
 
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
@@ -2734,11 +2744,8 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                                                           m_voxel_draw_wireframe_color[2]);
                 }
 
-                m_cur_shader_program->setUniformValue("transparency", 1.0f);
-                m_cur_shader_program->setUniformValue("disable_light", true);
                 m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT,
                                               (void*)(indices.size() * sizeof(GLuint)));
-                m_cur_shader_program->setUniformValue("disable_light", false);
 
                 if (current_shader != m_cur_shader_program) {
                     m_cur_shader_program->release();
@@ -2900,7 +2907,10 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                     current_shader->release();
                     m_cur_shader_program = m_paint_segment_program;
                     m_cur_shader_program->bind();
-                    applyMatrix();
+                    if (m_segment_shader_matrix_dirty) {
+                        applyMatrix();
+                        m_segment_shader_matrix_dirty = false;
+                    }
                 }
                 m_cur_shader_program->enableAttributeArray(0);
                 m_cur_shader_program->setAttributeArray(0, GL_FLOAT, &vertices[0], 3, sizeof(Point3f));
@@ -2910,14 +2920,6 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                 m_cur_shader_program->setUniformValue("line_offset_value_front", wire_offset);
                 m_cur_shader_program->setUniformValue("line_offset_value_back", wire_offset);
 
-                if (m_line_smooth) {
-                    glEnable(GL_LINE_SMOOTH);
-                    glEnable(GL_MULTISAMPLE);
-                }
-                else {
-                    glDisable(GL_LINE_SMOOTH);
-                    glDisable(GL_MULTISAMPLE);
-                }
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
 
                 if (m_voxel_draw_wireframe_color_shape) {
@@ -2932,10 +2934,7 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                                                           m_voxel_draw_wireframe_color[2]);
                 }
 
-                m_cur_shader_program->setUniformValue("transparency", 1.0f);
-                m_cur_shader_program->setUniformValue("disable_light", true);
                 m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT, seg_indices.data());
-                m_cur_shader_program->setUniformValue("disable_light", false);
 
                 m_cur_shader_program->disableAttributeArray(0);
                 m_cur_shader_program->disableAttributeArray(1);
@@ -3318,16 +3317,10 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                     current_shader->release();
                     m_cur_shader_program = m_paint_segment_program;
                     m_cur_shader_program->bind();
-                    applyMatrix();
-                }
-
-                if (m_line_smooth) {
-                    glEnable(GL_LINE_SMOOTH);
-                    glEnable(GL_MULTISAMPLE);
-                }
-                else {
-                    glDisable(GL_LINE_SMOOTH);
-                    glDisable(GL_MULTISAMPLE);
+                    if (m_segment_shader_matrix_dirty) {
+                        applyMatrix();
+                        m_segment_shader_matrix_dirty = false;
+                    }
                 }
 
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
@@ -3347,11 +3340,8 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                                                           m_voxel_draw_wireframe_color[2]);
                 }
 
-                m_cur_shader_program->setUniformValue("transparency", 1.0f);
-                m_cur_shader_program->setUniformValue("disable_light", true);
                 m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT,
                                               (void*)(indices.size() * sizeof(GLuint)));
-                m_cur_shader_program->setUniformValue("disable_light", false);
 
                 if (current_shader != m_cur_shader_program) {
                     m_cur_shader_program->release();
@@ -3513,7 +3503,10 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                     current_shader->release();
                     m_cur_shader_program = m_paint_segment_program;
                     m_cur_shader_program->bind();
-                    applyMatrix();
+                    if (m_segment_shader_matrix_dirty) {
+                        applyMatrix();
+                        m_segment_shader_matrix_dirty = false;
+                    }
                 }
                 m_cur_shader_program->enableAttributeArray(0);
                 m_cur_shader_program->setAttributeArray(0, GL_FLOAT, &vertices[0].m_position, 3, sizeof(Vertexf));
@@ -3523,14 +3516,6 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                 m_cur_shader_program->setUniformValue("line_offset_value_front", wire_offset);
                 m_cur_shader_program->setUniformValue("line_offset_value_back", wire_offset);
 
-                if (m_line_smooth) {
-                    glEnable(GL_LINE_SMOOTH);
-                    glEnable(GL_MULTISAMPLE);
-                }
-                else {
-                    glDisable(GL_LINE_SMOOTH);
-                    glDisable(GL_MULTISAMPLE);
-                }
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
 
                 if (m_voxel_draw_wireframe_color_shape) {
@@ -3545,10 +3530,7 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                                                           m_voxel_draw_wireframe_color[2]);
                 }
 
-                m_cur_shader_program->setUniformValue("transparency", 1.0f);
-                m_cur_shader_program->setUniformValue("disable_light", true);
                 m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT, seg_indices.data());
-                m_cur_shader_program->setUniformValue("disable_light", false);
 
                 m_cur_shader_program->disableAttributeArray(0);
                 m_cur_shader_program->disableAttributeArray(1);
