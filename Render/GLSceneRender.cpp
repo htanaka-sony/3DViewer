@@ -1217,16 +1217,16 @@ const GLSceneRender::Float3x3f& GLSceneRender::curNormalMatrix() const
 
 float GLSceneRender::drawPriorityOffsetScale() const
 {
-    // ズームレベルに応じてオフセット量をスケールする
-    // 正投影：orthoサイズ（初期値10）に比例、透視投影：カメラ距離に比例
-    // 基準スケール係数は 1e-5 で、初期 ortho_size=10 のとき従来の 1e-4 と一致する
-    if (m_scene_view->isPerspective()) {
-        const float camera_dist = (m_scene_view->cameraEye() - m_scene_view->cameraTarget()).length();
-        return camera_dist * 1.0e-5f;
+    // ズームレベルに応じてオフセット量をスケールする（ワールド空間単位）
+    // プロジェクション行列のYスケール係数の逆数を使用:
+    //   正投影: P[1][1] = 1/ortho_size  → 逆数 = ortho_size  (ズームアウト時に増加)
+    //   透視投影: P[1][1] = 1/tan(fov/2) → 逆数 = tan(fov/2) (ズームアウト時に増加)
+    // 初期 ortho_size=10 のとき従来の 1e-4 と一致する基準スケール係数 1e-5 を使用
+    const float proj_y_scale = m_scene_view->projectionMatrix()[1][1];
+    if (proj_y_scale <= 0.0f) {
+        return 1.0e-4f;    // フォールバック
     }
-    else {
-        return m_scene_view->projOrthoSize() * 1.0e-5f;
-    }
+    return 1.0e-5f / proj_y_scale;
 }
 
 void GLSceneRender::renderCondition(bool transparent, bool pick_render, bool text_render, bool drag, PickSnap snap)
