@@ -1344,8 +1344,8 @@ bool GLSceneRender::isBoxTinyOnScreen(const BoundingBox3f& bbox, const Matrix4x4
 
     const float pixel_width  = screen_max_x - screen_min_x;
     const float pixel_height = screen_max_y - screen_min_y;
-    return pixel_width < static_cast<float>(m_min_render_pixel_size)
-        && pixel_height < static_cast<float>(m_min_render_pixel_size);
+    return pixel_width <= static_cast<float>(m_min_render_pixel_size)
+        && pixel_height <= static_cast<float>(m_min_render_pixel_size);
 }
 
 bool GLSceneRender::renderNode(Node* node)

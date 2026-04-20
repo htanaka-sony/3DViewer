@@ -333,7 +333,7 @@ protected:
     float m_dpi_scale  = 1.0f;
     int   m_pick_pixel = 5.0f;
 
-    /// 微小オブジェクトのカリング閾値（ピクセル）。0以下は無効
+    /// Tiny object culling threshold (pixels). 0 or less disables culling
     int m_min_render_pixel_size = 0;
 
     /// Shading + Wireframe設定
