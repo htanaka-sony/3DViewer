@@ -2708,23 +2708,13 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                     applyMatrix();
                 }
 
-                bool gl_multisample_enabled = glIsEnabled(GL_MULTISAMPLE) ? true : false;
-                bool gl_line_smooth_enabled = glIsEnabled(GL_LINE_SMOOTH) ? true : false;
                 if (m_line_smooth) {
-                    if (!gl_line_smooth_enabled) {
-                        glEnable(GL_LINE_SMOOTH);
-                    }
-                    if (!gl_multisample_enabled) {
-                        glEnable(GL_MULTISAMPLE);
-                    }
+                    glEnable(GL_LINE_SMOOTH);
+                    glEnable(GL_MULTISAMPLE);
                 }
                 else {
-                    if (gl_line_smooth_enabled) {
-                        glDisable(GL_LINE_SMOOTH);
-                    }
-                    if (gl_multisample_enabled) {
-                        glDisable(GL_MULTISAMPLE);
-                    }
+                    glDisable(GL_LINE_SMOOTH);
+                    glDisable(GL_MULTISAMPLE);
                 }
 
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
@@ -2749,23 +2739,6 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                 m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT,
                                               (void*)(indices.size() * sizeof(GLuint)));
                 m_cur_shader_program->setUniformValue("disable_light", false);
-
-                if (m_line_smooth) {
-                    if (!gl_line_smooth_enabled) {
-                        glDisable(GL_LINE_SMOOTH);
-                    }
-                    if (!gl_multisample_enabled) {
-                        glDisable(GL_MULTISAMPLE);
-                    }
-                }
-                else {
-                    if (gl_line_smooth_enabled) {
-                        glEnable(GL_LINE_SMOOTH);
-                    }
-                    if (gl_multisample_enabled) {
-                        glEnable(GL_MULTISAMPLE);
-                    }
-                }
 
                 if (current_shader != m_cur_shader_program) {
                     m_cur_shader_program->release();
@@ -2937,23 +2910,13 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
                 m_cur_shader_program->setUniformValue("line_offset_value_front", wire_offset);
                 m_cur_shader_program->setUniformValue("line_offset_value_back", wire_offset);
 
-                bool gl_multisample_enabled = glIsEnabled(GL_MULTISAMPLE) ? true : false;
-                bool gl_line_smooth_enabled = glIsEnabled(GL_LINE_SMOOTH) ? true : false;
                 if (m_line_smooth) {
-                    if (!gl_line_smooth_enabled) {
-                        glEnable(GL_LINE_SMOOTH);
-                    }
-                    if (!gl_multisample_enabled) {
-                        glEnable(GL_MULTISAMPLE);
-                    }
+                    glEnable(GL_LINE_SMOOTH);
+                    glEnable(GL_MULTISAMPLE);
                 }
                 else {
-                    if (gl_line_smooth_enabled) {
-                        glDisable(GL_LINE_SMOOTH);
-                    }
-                    if (gl_multisample_enabled) {
-                        glDisable(GL_MULTISAMPLE);
-                    }
+                    glDisable(GL_LINE_SMOOTH);
+                    glDisable(GL_MULTISAMPLE);
                 }
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
 
@@ -2976,23 +2939,6 @@ bool GLSceneRender::renderRenderableMesh(Node* node, RenderEditableMesh* mesh, O
 
                 m_cur_shader_program->disableAttributeArray(0);
                 m_cur_shader_program->disableAttributeArray(1);
-
-                if (m_line_smooth) {
-                    if (!gl_line_smooth_enabled) {
-                        glDisable(GL_LINE_SMOOTH);
-                    }
-                    if (!gl_multisample_enabled) {
-                        glDisable(GL_MULTISAMPLE);
-                    }
-                }
-                else {
-                    if (gl_line_smooth_enabled) {
-                        glEnable(GL_LINE_SMOOTH);
-                    }
-                    if (gl_multisample_enabled) {
-                        glEnable(GL_MULTISAMPLE);
-                    }
-                }
 
                 if (current_shader != m_cur_shader_program) {
                     m_cur_shader_program->release();
@@ -3375,23 +3321,13 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                     applyMatrix();
                 }
 
-                bool gl_multisample_enabled = glIsEnabled(GL_MULTISAMPLE) ? true : false;
-                bool gl_line_smooth_enabled = glIsEnabled(GL_LINE_SMOOTH) ? true : false;
                 if (m_line_smooth) {
-                    if (!gl_line_smooth_enabled) {
-                        glEnable(GL_LINE_SMOOTH);
-                    }
-                    if (!gl_multisample_enabled) {
-                        glEnable(GL_MULTISAMPLE);
-                    }
+                    glEnable(GL_LINE_SMOOTH);
+                    glEnable(GL_MULTISAMPLE);
                 }
                 else {
-                    if (gl_line_smooth_enabled) {
-                        glDisable(GL_LINE_SMOOTH);
-                    }
-                    if (gl_multisample_enabled) {
-                        glDisable(GL_MULTISAMPLE);
-                    }
+                    glDisable(GL_LINE_SMOOTH);
+                    glDisable(GL_MULTISAMPLE);
                 }
 
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
@@ -3416,23 +3352,6 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                 m_gl_function->glDrawElements(GL_LINES, seg_indices.size(), GL_UNSIGNED_INT,
                                               (void*)(indices.size() * sizeof(GLuint)));
                 m_cur_shader_program->setUniformValue("disable_light", false);
-
-                if (m_line_smooth) {
-                    if (!gl_line_smooth_enabled) {
-                        glDisable(GL_LINE_SMOOTH);
-                    }
-                    if (!gl_multisample_enabled) {
-                        glDisable(GL_MULTISAMPLE);
-                    }
-                }
-                else {
-                    if (gl_line_smooth_enabled) {
-                        glEnable(GL_LINE_SMOOTH);
-                    }
-                    if (gl_multisample_enabled) {
-                        glEnable(GL_MULTISAMPLE);
-                    }
-                }
 
                 if (current_shader != m_cur_shader_program) {
                     m_cur_shader_program->release();
@@ -3604,23 +3523,13 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
                 m_cur_shader_program->setUniformValue("line_offset_value_front", wire_offset);
                 m_cur_shader_program->setUniformValue("line_offset_value_back", wire_offset);
 
-                bool gl_multisample_enabled = glIsEnabled(GL_MULTISAMPLE) ? true : false;
-                bool gl_line_smooth_enabled = glIsEnabled(GL_LINE_SMOOTH) ? true : false;
                 if (m_line_smooth) {
-                    if (!gl_line_smooth_enabled) {
-                        glEnable(GL_LINE_SMOOTH);
-                    }
-                    if (!gl_multisample_enabled) {
-                        glEnable(GL_MULTISAMPLE);
-                    }
+                    glEnable(GL_LINE_SMOOTH);
+                    glEnable(GL_MULTISAMPLE);
                 }
                 else {
-                    if (gl_line_smooth_enabled) {
-                        glDisable(GL_LINE_SMOOTH);
-                    }
-                    if (gl_multisample_enabled) {
-                        glDisable(GL_MULTISAMPLE);
-                    }
+                    glDisable(GL_LINE_SMOOTH);
+                    glDisable(GL_MULTISAMPLE);
                 }
                 glLineWidth(m_voxel_draw_wireframe_width * m_dpi_scale);
 
@@ -3643,23 +3552,6 @@ bool GLSceneRender::renderRenderableNormalMesh(Node* node, RenderEditableNormalM
 
                 m_cur_shader_program->disableAttributeArray(0);
                 m_cur_shader_program->disableAttributeArray(1);
-
-                if (m_line_smooth) {
-                    if (!gl_line_smooth_enabled) {
-                        glDisable(GL_LINE_SMOOTH);
-                    }
-                    if (!gl_multisample_enabled) {
-                        glDisable(GL_MULTISAMPLE);
-                    }
-                }
-                else {
-                    if (gl_line_smooth_enabled) {
-                        glEnable(GL_LINE_SMOOTH);
-                    }
-                    if (gl_multisample_enabled) {
-                        glEnable(GL_MULTISAMPLE);
-                    }
-                }
 
                 if (current_shader != m_cur_shader_program) {
                     m_cur_shader_program->release();
