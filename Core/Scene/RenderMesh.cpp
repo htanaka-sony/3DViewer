@@ -316,16 +316,12 @@ void RenderMesh::clearDisplayData()
 
 DEFINE_META_RENDERABLENODE(RenderEditableMesh, RenderMesh)
 
-RenderEditableMesh::RenderEditableMesh(RenderMesh* mesh)
-{
-    setRenderableObject(mesh);
-}
+RenderEditableMesh::RenderEditableMesh(RenderMesh* mesh) : RenderableNode(mesh) {}
 
 RenderEditableMesh::~RenderEditableMesh() {}
 
-RenderEditableMesh::RenderEditableMesh(const RenderEditableMesh& other)
+RenderEditableMesh::RenderEditableMesh(const RenderEditableMesh& other) : RenderableNode(other)
 {
-    setRenderableObject(other.renderableObject());
     if (other.m_projection_node.isAlive()) {
         m_projection_node = other.m_projection_node;
     }

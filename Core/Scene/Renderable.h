@@ -157,6 +157,10 @@ protected:
 
 /// Nodeが持つ(編集した表示データ)
 class CORE_EXPORT RenderableNode : public Renderable {
+protected:
+    RenderableNode(const RenderableNode& other);
+    RenderableNode(RenderableObject* renderable);
+
 public:
     static RefPtr<RenderableNode> createRenderableNode(RenderableObject* renderable);
 

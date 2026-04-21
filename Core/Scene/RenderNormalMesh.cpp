@@ -578,16 +578,12 @@ void RenderNormalMesh::clearDisplayData()
 
 DEFINE_META_RENDERABLENODE(RenderEditableNormalMesh, RenderNormalMesh)
 
-RenderEditableNormalMesh::RenderEditableNormalMesh(RenderNormalMesh* mesh)
-{
-    setRenderableObject(mesh);
-}
+RenderEditableNormalMesh::RenderEditableNormalMesh(RenderNormalMesh* mesh) : RenderableNode(mesh) {}
 
 RenderEditableNormalMesh::~RenderEditableNormalMesh() {}
 
-RenderEditableNormalMesh::RenderEditableNormalMesh(const RenderEditableNormalMesh& other)
+RenderEditableNormalMesh::RenderEditableNormalMesh(const RenderEditableNormalMesh& other) : RenderableNode(other)
 {
-    setRenderableObject(other.renderableObject());
     if (other.m_projection_node.isAlive()) {
         m_projection_node = other.m_projection_node;
     }

@@ -4,6 +4,16 @@
 
 CORE_NAMESPACE_BEGIN
 
+RenderableNode::RenderableNode(const RenderableNode& other) : Renderable(other)
+{
+    setRenderableObject(other.renderableObject());
+}
+
+RenderableNode::RenderableNode(RenderableObject* renderable)
+{
+    setRenderableObject(renderable);
+}
+
 RefPtr<RenderableNode> RenderableNode::createRenderableNode(RenderableObject* renderable)
 {
     if (!renderable) {
