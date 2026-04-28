@@ -366,7 +366,10 @@ protected:
     std::wstring m_color_label_max;
 
     /// 描画調整（イメージ出力など）
-    bool m_line_smooth            = true;
+    /// trueにした意図は確か縮小時に汚い（前面に出てしまう）とかだった気がする
+    /// 必要なら要素拡大時だけとか、使い分ける（Boxサイズ判定の情報渡して切り替えるとか）
+    bool m_line_smooth = false;
+
     bool m_show_coordinate_system = true;
 };
 

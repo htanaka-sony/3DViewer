@@ -1330,7 +1330,7 @@ bool GLSceneRender::renderScene()
 bool GLSceneRender::isBoxTinyOnScreen(const BoundingBox3f& bbox, const Matrix4x4f& path_matrix) const
 {
     if (m_min_render_pixel_size <= 0 || !bbox.valid()) {
-        return false;
+        return true;
     }
 
     const Matrix4x4f full_mvp = m_scene_view->mvpMatrix() * path_matrix;
@@ -1344,7 +1344,7 @@ bool GLSceneRender::isBoxTinyOnScreen(const BoundingBox3f& bbox, const Matrix4x4
         const Point3f& c    = bbox.corner(i);
         Point4f        clip = full_mvp * Point4f(c.x(), c.y(), c.z(), 1.0f);
         if (clip.w() <= 0.0f) {
-            return false;    // A corner is behind the camera; do not cull
+            return true;    // A corner is behind the camera; do not cull
         }
         const float ndcx = clip.x() / clip.w();
         const float ndcy = clip.y() / clip.w();
@@ -1371,18 +1371,24 @@ bool GLSceneRender::renderNode(Node* node)
     /// Matrix設定
     bool        push_matrix = false;
     const auto& matrix      = node->matrix();
-    {
-        const Matrix4x4f effective_path = matrix.isIdentity() ? curPathMatrix() : curPathMatrix() * matrix;
-        if (!m_scene_view->isBoxInFrustum(node->boundingBox(), effective_path)) {
-            return true;
-        }
-        if (isBoxTinyOnScreen(node->boundingBox(), effective_path)) {
-            return true;
-        }
-    }
     if (!matrix.isIdentity()) {
+        if (!m_scene_view->isBoxInFrustum(node->boundingBox(), curPathMatrix() * matrix)) {
+            return true;
+        }
+        if (isBoxTinyOnScreen(node->boundingBox(), curPathMatrix() * matrix)) {
+            return true;
+        }
+
         pushMatrix(matrix);
         push_matrix = true;
+    }
+    else {
+        if (!m_scene_view->isBoxInFrustum(node->boundingBox(), curPathMatrix())) {
+            return true;
+        }
+        if (isBoxTinyOnScreen(node->boundingBox(), curPathMatrix())) {
+            return true;
+        }
     }
 
     /// 以降はreturn しない
@@ -1545,7 +1551,7 @@ void GLSceneRender::createRenderEditableMeshData(RenderEditableMesh* mesh)
             }
             render_data->m_vbo.write(0, vertices.data(), vertex_size);
 
-            if (render_data->m_ibo.create()) {
+            if (render_data->m_ibo.isCreated()) {
                 render_data->m_ibo.bind();
 #if 0
             int indices_size = (int)indices.size() * sizeof(GLuint);
@@ -1695,7 +1701,7 @@ void GLSceneRender::createRenderEditableNormalMeshData(RenderEditableNormalMesh*
             }
             render_data->m_vbo.write(0, vertices.data(), vertex_size);
 
-            if (render_data->m_ibo.create()) {
+            if (render_data->m_ibo.isCreated()) {
                 render_data->m_ibo.bind();
 #if 0
             int indices_size = (int)indices.size() * sizeof(GLuint);
