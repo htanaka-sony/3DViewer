@@ -141,6 +141,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                     mesh->clearDisplayEditData();
                     mesh->markRenderDirty();
                     mesh->markSegmentsGroupDirty();
+                    mesh->markTriaGroupDirty();
                     mesh->markBoxDirty();
                 }
 
@@ -181,6 +182,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->setEnalbeEditDisplayData(true);
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                             break;
                         }
@@ -197,6 +199,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                         mesh->setEnalbeEditDisplayData(true);
                         mesh->markRenderDirty();
                         mesh->markSegmentsGroupDirty();
+                        mesh->markTriaGroupDirty();
                         mesh->markBoxDirty();
                         break;
                     }
@@ -207,6 +210,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->setEnalbeEditDisplayData(true);
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                             break;
                         }
@@ -235,6 +239,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->switchEditDisplayBuffer();
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                         }
                         else {
@@ -243,6 +248,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->setEnalbeEditDisplayData(true);
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                             break;
                         }
@@ -255,6 +261,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->switchEditDisplayBuffer();
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                         }
                     }
@@ -286,6 +293,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                     mesh->clearDisplayEditData();
                     mesh->markRenderDirty();
                     mesh->markSegmentsGroupDirty();
+                    mesh->markTriaGroupDirty();
                     mesh->markBoxDirty();
                 }
 
@@ -317,6 +325,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->setEnalbeEditDisplayData(true);
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                             break;
                         }
@@ -333,6 +342,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                         mesh->setEnalbeEditDisplayData(true);
                         mesh->markRenderDirty();
                         mesh->markSegmentsGroupDirty();
+                        mesh->markTriaGroupDirty();
                         mesh->markBoxDirty();
                         break;
                     }
@@ -343,6 +353,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->setEnalbeEditDisplayData(true);
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                             break;
                         }
@@ -371,6 +382,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->switchEditDisplayBuffer();
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                         }
                         else {
@@ -379,6 +391,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->setEnalbeEditDisplayData(true);
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                             break;
                         }
@@ -390,6 +403,7 @@ void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vecto
                             mesh->switchEditDisplayBuffer();
                             mesh->markRenderDirty();
                             mesh->markSegmentsGroupDirty();
+                            mesh->markTriaGroupDirty();
                             mesh->markBoxDirty();
                         }
                     }
@@ -444,6 +458,7 @@ bool Clipping::clear(Node* node, bool only_visible)
                         mesh->clearDisplayEditData();
                         mesh->markRenderDirty();
                         mesh->markSegmentsGroupDirty();
+                        mesh->markTriaGroupDirty();
                         mesh->markBoxDirty();
                         node->markBoxDirty();
                         ret = true;
@@ -456,6 +471,7 @@ bool Clipping::clear(Node* node, bool only_visible)
                         mesh->clearDisplayEditData();
                         mesh->markRenderDirty();
                         mesh->markSegmentsGroupDirty();
+                        mesh->markTriaGroupDirty();
                         mesh->markBoxDirty();
                         node->markBoxDirty();
                         ret = true;

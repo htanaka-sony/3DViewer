@@ -256,16 +256,16 @@ void Picking::bodyLineIntersectionMinimum(std::vector<TargetNodeInfo>& targets, 
             case RenderableType::RenderEditableMesh: {
                 RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
-                const auto& vertex_list =
-                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
-                const auto& index_list =
-                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
-
                 SIntersectionInfo temp;
                 temp.m_node = node;
 
                 const auto& group_boxes = mesh->displayTriaGroupBox();
                 const auto& group_start = mesh->displayTriaGroupStart();
+
+                const auto& vertex_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+                const auto& index_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
                 std::vector<TargetIndexInfo> target_index;
 
@@ -372,16 +372,16 @@ void Picking::bodyLineIntersectionMinimum(std::vector<TargetNodeInfo>& targets, 
             case RenderableType::RenderEditableNormalMesh: {
                 RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
 
-                const auto& vertex_list =
-                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
-                const auto& index_list =
-                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
-
                 SIntersectionInfo temp;
                 temp.m_node = node;
 
                 const auto& group_boxes = mesh->displayTriaGroupBox();
                 const auto& group_start = mesh->displayTriaGroupStart();
+
+                const auto& vertex_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+                const auto& index_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
                 std::vector<TargetIndexInfo> target_index;
 
@@ -527,16 +527,16 @@ void Picking::bodyLineIntersection(const Matrix4x4f& inv_line_matrix, Node* node
 
                 RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
 
-                const auto& vertex_list =
-                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
-                const auto& index_list =
-                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
-
                 SIntersectionInfo temp;
                 temp.m_node = node;
 
                 const auto& group_boxes = mesh->displayTriaGroupBox();
                 const auto& group_start = mesh->displayTriaGroupStart();
+
+                const auto& vertex_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+                const auto& index_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
                 for (int group_index = 0; group_index < group_start.size(); ++group_index) {
                     auto bbox = inv_line_matrix.preMult(group_boxes[group_index]);
@@ -644,16 +644,16 @@ void Picking::bodyLineIntersection(const Matrix4x4f& inv_line_matrix, Node* node
 
                 RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
 
-                const auto& vertex_list =
-                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
-                const auto& index_list =
-                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
-
                 SIntersectionInfo temp;
                 temp.m_node = node;
 
                 const auto& group_boxes = mesh->displayTriaGroupBox();
                 const auto& group_start = mesh->displayTriaGroupStart();
+
+                const auto& vertex_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditVertices() : mesh->displayVertices();
+                const auto& index_list =
+                    mesh->isEnableEditDisplayData() ? mesh->displayEditIndices() : mesh->displayIndices();
 
                 for (int group_index = 0; group_index < group_start.size(); ++group_index) {
                     auto bbox = inv_line_matrix.preMult(group_boxes[group_index]);

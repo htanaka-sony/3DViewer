@@ -194,13 +194,6 @@ void Node::clearDisplayData()
     if (m_renderable != nullptr) {
         m_renderable->clearDisplayData();
     }
-    /*
-    m_vertices.clear();
-    m_indices.clear();
-    clearDisplayEditData();
-    markSegmentsGroupDirty();
-    markRenderDirty();
-    */
     markBoxDirty();
 }
 
