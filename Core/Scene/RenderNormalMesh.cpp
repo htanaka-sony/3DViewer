@@ -472,6 +472,259 @@ void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, fl
     markBoxDirty();
 }
 
+void RenderNormalMesh::createEllipsoid(float radius_x, float radius_y, float radius_z, float tol)
+{
+    m_vertices.clear();
+    m_indices.clear();
+    m_segments_indices.clear();
+
+    const float rx = radius_x;
+    const float ry = radius_y;
+    const float rz = radius_z;
+
+    /// 許容誤差から分割数を計算（createBoxRound と同じ基準: 1/4円あたりの弦誤差）
+    const float r_ref = std::max({rx, ry, rz});
+    int         segs  = 1;
+    if (tol > 0.0f && r_ref > 0.0f) {
+        segs = std::max(segs, (int)std::ceil((float)M_PI / std::sqrt(2.0f * tol / r_ref)));
+    }
+
+    /// 緯度 (u: 0..π) = 2*segs 分割, 経度 (v: 0..2π) = 4*segs 分割
+    const int segs_lat = 2 * segs;
+    const int segs_lon = 4 * segs;
+
+    /// sin/cos テーブルを事前計算
+    std::vector<float> cosU(segs_lat + 1), sinU(segs_lat + 1);
+    std::vector<float> cosV(segs_lon + 1), sinV(segs_lon + 1);
+    {
+        const float stepU = (float)M_PI / (float)segs_lat;
+        for (int i = 0; i <= segs_lat; i++) {
+            cosU[i] = std::cos((float)i * stepU);
+            sinU[i] = std::sin((float)i * stepU);
+        }
+        /// 極点の丸め誤差を排除
+        cosU[0]        = 1.0f;
+        sinU[0]        = 0.0f;
+        cosU[segs_lat] = -1.0f;
+        sinU[segs_lat] = 0.0f;
+
+        const float stepV = 2.0f * (float)M_PI / (float)segs_lon;
+        for (int j = 0; j <= segs_lon; j++) {
+            cosV[j] = std::cos((float)j * stepV);
+            sinV[j] = std::sin((float)j * stepV);
+        }
+        /// ループを厳密に閉じる
+        cosV[segs_lon] = 1.0f;
+        sinV[segs_lon] = 0.0f;
+    }
+
+    /// 楕円面上の頂点座標: P(u,v) = (rx*sin(u)*cos(v), ry*sin(u)*sin(v), rz*cos(u))
+    auto getPos = [&](int ui, int vj) -> Point3f {
+        return {rx * sinU[ui] * cosV[vj], ry * sinU[ui] * sinV[vj], rz * cosU[ui]};
+    };
+
+    /// 楕円面の外向き法線: ∇((x/rx)²+(y/ry)²+(z/rz)²) = (x/rx², y/ry², z/rz²) を正規化
+    auto getNorm = [&](int ui, int vj) -> Point3f {
+        return Point3f(sinU[ui] * cosV[vj] / rx, sinU[ui] * sinV[vj] / ry, cosU[ui] / rz).normalized();
+    };
+
+    /// 各頂点に個別の法線を設定してquadを追加
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1,
+                        const Point3f& p2, const Point3f& n2, const Point3f& p3, const Point3f& n3) {
+        const unsigned int base = (unsigned int)m_vertices.size();
+        m_vertices.emplace_back(p0, n0);
+        m_vertices.emplace_back(p1, n1);
+        m_vertices.emplace_back(p2, n2);
+        m_vertices.emplace_back(p3, n3);
+        m_indices.emplace_back(base + 0);
+        m_indices.emplace_back(base + 1);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 3);
+        m_indices.emplace_back(base + 0);
+    };
+
+    /// 楕円面を緯度×経度のquadグリッドとして生成
+    /// quad(ui,vj): p(ui,vj), p(ui,vj+1), p(ui+1,vj+1), p(ui+1,vj) → 外向きCCW巻き
+    /// 極（ui=0 or ui=segs_lat）では quad が三角形に縮退する
+    for (int ui = 0; ui < segs_lat; ui++) {
+        for (int vj = 0; vj < segs_lon; vj++) {
+            addQuadN(getPos(ui, vj), getNorm(ui, vj), getPos(ui, vj + 1), getNorm(ui, vj + 1),
+                     getPos(ui + 1, vj + 1), getNorm(ui + 1, vj + 1), getPos(ui + 1, vj), getNorm(ui + 1, vj));
+        }
+    }
+
+    /// ---- ワイヤーフレーム (m_segments_indices) ----
+    if (m_create_section_line) {
+        /// quad(ui,vj) の頂点レイアウト: base = (ui*segs_lon + vj)*4
+        ///   base+0 = p(ui,  vj),   base+1 = p(ui,  vj+1)
+        ///   base+2 = p(ui+1,vj+1), base+3 = p(ui+1,vj)
+
+        /// 緯度線: 等間隔で wire_lat 本の中間緯線を描く
+        const int wire_lat = 4;
+        for (int i = 0; i < wire_lat; i++) {
+            const int ui = std::max(0, std::min(segs_lat - 1,
+                                                (int)std::round((float)(i + 1) * segs_lat / (wire_lat + 1)) - 1));
+            for (int vj = 0; vj < segs_lon; vj++) {
+                const unsigned int base = (unsigned int)(ui * segs_lon + vj) * 4;
+                m_segments_indices.emplace_back(base + 3);    /// p(ui+1, vj)
+                m_segments_indices.emplace_back(base + 2);    /// p(ui+1, vj+1)
+            }
+        }
+
+        /// 経度線: wire_lon 本を等間隔で描く
+        const int wire_lon = 4;
+        for (int j = 0; j < wire_lon; j++) {
+            const int vj = (int)std::round((float)j * segs_lon / wire_lon) % segs_lon;
+            for (int ui = 0; ui < segs_lat; ui++) {
+                const unsigned int base = (unsigned int)(ui * segs_lon + vj) * 4;
+                m_segments_indices.emplace_back(base + 0);    /// p(ui,   vj)
+                m_segments_indices.emplace_back(base + 3);    /// p(ui+1, vj)
+            }
+        }
+    }
+
+    markRenderDirty();
+    markBoxDirty();
+}
+
+void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, float height, float taper_dist,
+                                                float tol)
+{
+    m_vertices.clear();
+    m_indices.clear();
+    m_segments_indices.clear();
+
+    /// テーパー方向に応じて上底・下底の半径を決定
+    /// taper_dist > 0: 上部縮小、taper_dist < 0: 下部縮小
+    float rx_bot, ry_bot, rx_top, ry_top;
+    if (taper_dist >= 0.0f) {
+        rx_bot = radius_x;
+        ry_bot = radius_y;
+        rx_top = std::max(0.0f, radius_x - taper_dist);
+        ry_top = std::max(0.0f, radius_y - taper_dist);
+    }
+    else {
+        rx_bot = std::max(0.0f, radius_x + taper_dist);
+        ry_bot = std::max(0.0f, radius_y + taper_dist);
+        rx_top = radius_x;
+        ry_top = radius_y;
+    }
+
+    /// 許容誤差から分割数を計算（createBoxRound と同じ基準）
+    const float r_ref = std::max(radius_x, radius_y);
+    int         segs  = 1;
+    if (tol > 0.0f && r_ref > 0.0f) {
+        segs = std::max(segs, (int)std::ceil((float)M_PI / std::sqrt(2.0f * tol / r_ref)));
+    }
+
+    /// 経度分割数 (全円 = 4*segs)
+    const int segs_v = 4 * segs;
+
+    /// sin/cos テーブルを事前計算
+    std::vector<float> cosV(segs_v + 1), sinV(segs_v + 1);
+    {
+        const float step = 2.0f * (float)M_PI / (float)segs_v;
+        for (int j = 0; j <= segs_v; j++) {
+            cosV[j] = std::cos((float)j * step);
+            sinV[j] = std::sin((float)j * step);
+        }
+        cosV[segs_v] = 1.0f;
+        sinV[segs_v] = 0.0f;
+    }
+
+    /// 各頂点に個別の法線を設定してquadを追加
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1,
+                        const Point3f& p2, const Point3f& n2, const Point3f& p3, const Point3f& n3) {
+        const unsigned int base = (unsigned int)m_vertices.size();
+        m_vertices.emplace_back(p0, n0);
+        m_vertices.emplace_back(p1, n1);
+        m_vertices.emplace_back(p2, n2);
+        m_vertices.emplace_back(p3, n3);
+        m_indices.emplace_back(base + 0);
+        m_indices.emplace_back(base + 1);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 3);
+        m_indices.emplace_back(base + 0);
+    };
+
+    auto addQuadFlat = [&](const Point3f& p0, const Point3f& p1, const Point3f& p2, const Point3f& p3,
+                           const Point3f& norm) { addQuadN(p0, norm, p1, norm, p2, norm, p3, norm); };
+
+    /// テーパー側面の外向き法線
+    /// 楕円錐台の陰関数の勾配を用いた正確な法線計算:
+    ///   ∂P/∂t = (-rx(z)*sin(t), ry(z)*cos(t), 0)
+    ///   ∂P/∂z = (drx*cos(t), dry*sin(t), 1)
+    ///   N = ∂P/∂t × ∂P/∂z = (ry(z)*cos(t), rx(z)*sin(t), -rx(z)*dry*sin²(t) - ry(z)*drx*cos²(t))
+    const float drx    = (height > 0.0f) ? (rx_top - rx_bot) / height : 0.0f;
+    const float dry    = (height > 0.0f) ? (ry_top - ry_bot) / height : 0.0f;
+    auto        sideN  = [&](float rxi, float ryi, float ct, float st) -> Point3f {
+        return Point3f(ryi * ct, rxi * st, -rxi * dry * st * st - ryi * drx * ct * ct).normalized();
+    };
+
+    /// ---- 側面: segs_v 枚のquad ----
+    /// quad(vj): pBot[vj], pBot[vj+1], pTop[vj+1], pTop[vj] → 外向きCCW巻き
+    for (int vj = 0; vj < segs_v; vj++) {
+        const float   ct0   = cosV[vj], st0 = sinV[vj];
+        const float   ct1   = cosV[vj + 1], st1 = sinV[vj + 1];
+        const Point3f pBot0 = {rx_bot * ct0, ry_bot * st0, 0.0f};
+        const Point3f pBot1 = {rx_bot * ct1, ry_bot * st1, 0.0f};
+        const Point3f pTop0 = {rx_top * ct0, ry_top * st0, height};
+        const Point3f pTop1 = {rx_top * ct1, ry_top * st1, height};
+        addQuadN(pBot0, sideN(rx_bot, ry_bot, ct0, st0), pBot1, sideN(rx_bot, ry_bot, ct1, st1), pTop1,
+                 sideN(rx_top, ry_top, ct1, st1), pTop0, sideN(rx_top, ry_top, ct0, st0));
+    }
+
+    /// ---- 下底面 (z=0, 法線: -Z) ----
+    /// 縮退quad (中心点 + 外周2点) で三角形を生成。上から見てCW巻き = -Z側からCCW ✓
+    const Point3f botCenter = {0.0f, 0.0f, 0.0f};
+    const Point3f normBot   = {0.0f, 0.0f, -1.0f};
+    for (int vj = 0; vj < segs_v; vj++) {
+        const Point3f eBot0 = {rx_bot * cosV[vj], ry_bot * sinV[vj], 0.0f};
+        const Point3f eBot1 = {rx_bot * cosV[vj + 1], ry_bot * sinV[vj + 1], 0.0f};
+        addQuadFlat(botCenter, eBot1, eBot0, botCenter, normBot);
+    }
+
+    /// ---- 上底面 (z=height, 法線: +Z) ----
+    /// 縮退quad (中心点 + 外周2点) で三角形を生成。上から見てCCW巻き = +Z側からCCW ✓
+    const Point3f topCenter = {0.0f, 0.0f, height};
+    const Point3f normTop   = {0.0f, 0.0f, 1.0f};
+    for (int vj = 0; vj < segs_v; vj++) {
+        const Point3f eTop0 = {rx_top * cosV[vj], ry_top * sinV[vj], height};
+        const Point3f eTop1 = {rx_top * cosV[vj + 1], ry_top * sinV[vj + 1], height};
+        addQuadFlat(topCenter, eTop0, eTop1, topCenter, normTop);
+    }
+
+    /// ---- ワイヤーフレーム (m_segments_indices) ----
+    if (m_create_section_line) {
+        /// 側面 quad(vj) のベース頂点インデックス: vj * 4
+        ///   base+0 = pBot[vj], base+1 = pBot[vj+1]
+        ///   base+2 = pTop[vj+1], base+3 = pTop[vj]
+
+        /// 上底・下底の外周楕円輪郭線
+        for (int vj = 0; vj < segs_v; vj++) {
+            const unsigned int base = (unsigned int)vj * 4;
+            m_segments_indices.emplace_back(base + 0);    /// pBot[vj]
+            m_segments_indices.emplace_back(base + 1);    /// pBot[vj+1]
+            m_segments_indices.emplace_back(base + 3);    /// pTop[vj]
+            m_segments_indices.emplace_back(base + 2);    /// pTop[vj+1]
+        }
+
+        /// 縦辺: wire_lon 本を等間隔で描く
+        const int wire_lon = 4;
+        for (int i = 0; i < wire_lon; i++) {
+            const int          vj   = (int)std::round((float)i * segs_v / wire_lon) % segs_v;
+            const unsigned int base = (unsigned int)vj * 4;
+            m_segments_indices.emplace_back(base + 0);    /// pBot[vj]
+            m_segments_indices.emplace_back(base + 3);    /// pTop[vj]
+        }
+    }
+
+    markRenderDirty();
+    markBoxDirty();
+}
+
 void RenderNormalMesh::updateBoundingBox()
 {
     m_bbox.init();

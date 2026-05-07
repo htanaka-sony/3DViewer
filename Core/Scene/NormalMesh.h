@@ -13,6 +13,12 @@ protected:
 
 public:
     void createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ, float tol);
+    // radius_x / radius_y / radius_z : 各軸方向の半径 (m)
+    void createEllipsoid(float radius_x, float radius_y, float radius_z, float tol);
+    // radius_x / radius_y : 底面の半径 (m)
+    // height              : 柱の高さ (m)
+    // taper_dist          : テーパー量 (m)、0 = テーパー無し、正=上部縮小、負=下部縮小
+    void createEllipticalCylinder(float radius_x, float radius_y, float height, float taper_dist, float tol);
 };
 
 CORE_NAMESPACE_END

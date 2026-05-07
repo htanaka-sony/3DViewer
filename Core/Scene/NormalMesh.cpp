@@ -23,4 +23,16 @@ void NormalMesh::createBoxRound(const BoundingBox3f& box, float radius, float ra
     mesh->createBoxRound(box, radius, ratioX, ratioY, ratioZ, tol);
 }
 
+void NormalMesh::createEllipsoid(float radius_x, float radius_y, float radius_z, float tol)
+{
+    RenderNormalMesh* mesh = (RenderNormalMesh*)m_renderable.ptr();
+    mesh->createEllipsoid(radius_x, radius_y, radius_z, tol);
+}
+
+void NormalMesh::createEllipticalCylinder(float radius_x, float radius_y, float height, float taper_dist, float tol)
+{
+    RenderNormalMesh* mesh = (RenderNormalMesh*)m_renderable.ptr();
+    mesh->createEllipticalCylinder(radius_x, radius_y, height, taper_dist, tol);
+}
+
 CORE_NAMESPACE_END
