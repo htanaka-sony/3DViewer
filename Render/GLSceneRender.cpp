@@ -1330,7 +1330,7 @@ bool GLSceneRender::renderScene()
 bool GLSceneRender::isBoxTinyOnScreen(const BoundingBox3f& bbox, const Matrix4x4f& path_matrix) const
 {
     if (m_min_render_pixel_size <= 0 || !bbox.valid()) {
-        return true;
+        return false;
     }
 
     const Matrix4x4f full_mvp = m_scene_view->mvpMatrix() * path_matrix;
