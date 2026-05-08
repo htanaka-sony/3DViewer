@@ -5,6 +5,8 @@
 #include <cmath>
 #include "earcut.hpp"
 
+#include "Math/Point2f.h"
+
 #undef min
 #undef max
 
@@ -531,8 +533,8 @@ void RenderNormalMesh::createEllipsoid(float radius_x, float radius_y, float rad
     };
 
     /// 各頂点に個別の法線を設定してquadを追加
-    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1,
-                        const Point3f& p2, const Point3f& n2, const Point3f& p3, const Point3f& n3) {
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
+                        const Point3f& n2, const Point3f& p3, const Point3f& n3) {
         const unsigned int base = (unsigned int)m_vertices.size();
         m_vertices.emplace_back(p0, n0);
         m_vertices.emplace_back(p1, n1);
@@ -551,8 +553,8 @@ void RenderNormalMesh::createEllipsoid(float radius_x, float radius_y, float rad
     /// 極（ui=0 or ui=segs_lat）では quad が三角形に縮退する
     for (int ui = 0; ui < segs_lat; ui++) {
         for (int vj = 0; vj < segs_lon; vj++) {
-            addQuadN(getPos(ui, vj), getNorm(ui, vj), getPos(ui, vj + 1), getNorm(ui, vj + 1),
-                     getPos(ui + 1, vj + 1), getNorm(ui + 1, vj + 1), getPos(ui + 1, vj), getNorm(ui + 1, vj));
+            addQuadN(getPos(ui, vj), getNorm(ui, vj), getPos(ui, vj + 1), getNorm(ui, vj + 1), getPos(ui + 1, vj + 1),
+                     getNorm(ui + 1, vj + 1), getPos(ui + 1, vj), getNorm(ui + 1, vj));
         }
     }
 
@@ -565,8 +567,8 @@ void RenderNormalMesh::createEllipsoid(float radius_x, float radius_y, float rad
         /// 緯度線: 等間隔で wire_lat 本の中間緯線を描く
         const int wire_lat = 4;
         for (int i = 0; i < wire_lat; i++) {
-            const int ui = std::max(0, std::min(segs_lat - 1,
-                                                (int)std::round((float)(i + 1) * segs_lat / (wire_lat + 1)) - 1));
+            const int ui =
+                std::max(0, std::min(segs_lat - 1, (int)std::round((float)(i + 1) * segs_lat / (wire_lat + 1)) - 1));
             for (int vj = 0; vj < segs_lon; vj++) {
                 const unsigned int base = (unsigned int)(ui * segs_lon + vj) * 4;
                 m_segments_indices.emplace_back(base + 3);    /// p(ui+1, vj)
@@ -636,8 +638,8 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
     }
 
     /// 各頂点に個別の法線を設定してquadを追加
-    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1,
-                        const Point3f& p2, const Point3f& n2, const Point3f& p3, const Point3f& n3) {
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
+                        const Point3f& n2, const Point3f& p3, const Point3f& n3) {
         const unsigned int base = (unsigned int)m_vertices.size();
         m_vertices.emplace_back(p0, n0);
         m_vertices.emplace_back(p1, n1);
@@ -659,17 +661,17 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
     ///   ∂P/∂t = (-rx(z)*sin(t), ry(z)*cos(t), 0)
     ///   ∂P/∂z = (drx*cos(t), dry*sin(t), 1)
     ///   N = ∂P/∂t × ∂P/∂z = (ry(z)*cos(t), rx(z)*sin(t), -rx(z)*dry*sin²(t) - ry(z)*drx*cos²(t))
-    const float drx    = (height > 0.0f) ? (rx_top - rx_bot) / height : 0.0f;
-    const float dry    = (height > 0.0f) ? (ry_top - ry_bot) / height : 0.0f;
-    auto        sideN  = [&](float rxi, float ryi, float ct, float st) -> Point3f {
+    const float drx   = (height > 0.0f) ? (rx_top - rx_bot) / height : 0.0f;
+    const float dry   = (height > 0.0f) ? (ry_top - ry_bot) / height : 0.0f;
+    auto        sideN = [&](float rxi, float ryi, float ct, float st) -> Point3f {
         return Point3f(ryi * ct, rxi * st, -rxi * dry * st * st - ryi * drx * ct * ct).normalized();
     };
 
     /// ---- 側面: segs_v 枚のquad ----
     /// quad(vj): pBot[vj], pBot[vj+1], pTop[vj+1], pTop[vj] → 外向きCCW巻き
     for (int vj = 0; vj < segs_v; vj++) {
-        const float   ct0   = cosV[vj], st0 = sinV[vj];
-        const float   ct1   = cosV[vj + 1], st1 = sinV[vj + 1];
+        const float   ct0 = cosV[vj], st0 = sinV[vj];
+        const float   ct1 = cosV[vj + 1], st1 = sinV[vj + 1];
         const Point3f pBot0 = {rx_bot * ct0, ry_bot * st0, 0.0f};
         const Point3f pBot1 = {rx_bot * ct1, ry_bot * st1, 0.0f};
         const Point3f pTop0 = {rx_top * ct0, ry_top * st0, height};
@@ -774,8 +776,8 @@ void RenderNormalMesh::createPolygonPrism(const std::vector<float>& vertices_x, 
         std::reverse(poly.begin(), poly.end());
     }
 
-    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1,
-                        const Point3f& p2, const Point3f& n2, const Point3f& p3, const Point3f& n3) {
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
+                        const Point3f& n2, const Point3f& p3, const Point3f& n3) {
         const unsigned int base = (unsigned int)m_vertices.size();
         m_vertices.emplace_back(p0, n0);
         m_vertices.emplace_back(p1, n1);
@@ -799,7 +801,7 @@ void RenderNormalMesh::createPolygonPrism(const std::vector<float>& vertices_x, 
     };
 
     for (size_t i = 0; i < poly.size(); i++) {
-        const size_t j = (i + 1) % poly.size();
+        const size_t  j = (i + 1) % poly.size();
         const Point3f p0{poly[i].x(), poly[i].y(), 0.0f};
         const Point3f p1{poly[j].x(), poly[j].y(), 0.0f};
         const Point3f p2{poly[j].x(), poly[j].y(), height};
@@ -844,12 +846,9 @@ void RenderNormalMesh::createPolygonPrism(const std::vector<float>& vertices_x, 
     markBoxDirty();
 }
 
-void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float z_len,
-                                      float ap_x_offset, float ap_y_offset,
-                                      float ap_xlen, float ap_ylen,
-                                      int round_state, float radius, float ratio_x, float ratio_y,
-                                      int taper_state, float taper_dist,
-                                      float tol)
+void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float z_len, float ap_x_offset,
+                                      float ap_y_offset, float ap_xlen, float ap_ylen, int round_state, float radius,
+                                      float ratio_x, float ratio_y, int taper_state, float taper_dist, float tol)
 {
     m_vertices.clear();
     m_indices.clear();
@@ -908,11 +907,17 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
 
     /// ---- outer walls (always sharp rectangles) ----
     std::array<Point3f, 4> ob{
-        Point3f{0.0f, 0.0f, 0.0f}, Point3f{outer_xlen, 0.0f, 0.0f}, Point3f{outer_xlen, outer_ylen, 0.0f},
-        Point3f{0.0f, outer_ylen, 0.0f}};
+        Point3f{0.0f,       0.0f,       0.0f},
+        Point3f{outer_xlen, 0.0f,       0.0f},
+        Point3f{outer_xlen, outer_ylen, 0.0f},
+        Point3f{0.0f,       outer_ylen, 0.0f}
+    };
     std::array<Point3f, 4> ot{
-        Point3f{0.0f, 0.0f, z_len}, Point3f{outer_xlen, 0.0f, z_len}, Point3f{outer_xlen, outer_ylen, z_len},
-        Point3f{0.0f, outer_ylen, z_len}};
+        Point3f{0.0f,       0.0f,       z_len},
+        Point3f{outer_xlen, 0.0f,       z_len},
+        Point3f{outer_xlen, outer_ylen, z_len},
+        Point3f{0.0f,       outer_ylen, z_len}
+    };
     for (int i = 0; i < 4; i++) {
         const int j = (i + 1) % 4;
         addQuadFlatAuto(ob[i], ob[j], ot[j], ot[i]);
@@ -921,20 +926,18 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
 
     /// ---- rounding parameters ----
     /// EyerisProject convention (same as createBoxRound):
-    ///   ratioMax = max(ratio_x, ratio_y)
-    ///   rx = radius * ratio_x / ratioMax   ry = radius * ratio_y / ratioMax
+    ///   rx = radius * ratio_x  ry = radius * ratio_y
     ///   clamp to half the opening dimensions at each face independently.
-    float    rx_b = 0.0f, ry_b = 0.0f, rx_t = 0.0f, ry_t = 0.0f;
-    int      segs     = 1;
+    float      rx_b = 0.0f, ry_b = 0.0f, rx_t = 0.0f, ry_t = 0.0f;
+    int        segs     = 1;
     const bool do_round = (round_state != 0 && radius > 0.0f && ratio_x > 0.0f && ratio_y > 0.0f);
     if (do_round) {
-        const float ratioMax = std::max(ratio_x, ratio_y);
-        rx_b                 = radius * ratio_x / ratioMax;
-        ry_b                 = radius * ratio_y / ratioMax;
-        rx_b                 = std::min(rx_b, (ix1 - ix0) * 0.5f);
-        ry_b                 = std::min(ry_b, (iy1 - iy0) * 0.5f);
-        rx_t                 = std::min(rx_b, (ixt1 - ixt0) * 0.5f);
-        ry_t                 = std::min(ry_b, (iyt1 - iyt0) * 0.5f);
+        rx_b = radius * ratio_x;
+        ry_b = radius * ratio_y;
+        rx_b = std::min(rx_b, (ix1 - ix0) * 0.5f);
+        ry_b = std::min(ry_b, (iy1 - iy0) * 0.5f);
+        rx_t = std::min(rx_b, (ixt1 - ixt0) * 0.5f);
+        ry_t = std::min(ry_b, (iyt1 - iyt0) * 0.5f);
         /// Arc segment count from tolerance (same formula as createBoxRound):
         ///   chord error = r*(1 - cos(π/N)) ≤ tol  →  N ≥ π / sqrt(2*tol/r)
         const float r_ref = std::max(rx_b, ry_b);
@@ -957,10 +960,10 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
             float cx, cy, a0;
         };
         const ArcInfo arcs[4] = {
-            {x1 - rx, y0 + ry, -(float)M_PI_2},    /// BR: −90° → 0°
-            {x1 - rx, y1 - ry, 0.0f           },   /// TR:   0° → 90°
-            {x0 + rx, y1 - ry,  (float)M_PI_2 },   /// TL:  90° → 180°
-            {x0 + rx, y0 + ry,  (float)M_PI   },    /// BL: 180° → 270°
+            {x1 - rx, y0 + ry, -(float)M_PI_2}, /// BR: −90° → 0°
+            {x1 - rx, y1 - ry, 0.0f          }, /// TR:   0° → 90°
+            {x0 + rx, y1 - ry, (float)M_PI_2 }, /// TL:  90° → 180°
+            {x0 + rx, y0 + ry, (float)M_PI   }, /// BL: 180° → 270°
         };
         for (const auto& a : arcs) {
             for (int k = 0; k <= segs; k++) {
@@ -988,8 +991,18 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
         inner_top_cw = makeInnerCW(ixt0, iyt0, ixt1, iyt1, rx_t, ry_t);
     }
     else {
-        inner_bot_cw = {{ix0, iy0}, {ix0, iy1}, {ix1, iy1}, {ix1, iy0}};
-        inner_top_cw = {{ixt0, iyt0}, {ixt0, iyt1}, {ixt1, iyt1}, {ixt1, iyt0}};
+        inner_bot_cw = {
+            {ix0, iy0},
+            {ix0, iy1},
+            {ix1, iy1},
+            {ix1, iy0}
+        };
+        inner_top_cw = {
+            {ixt0, iyt0},
+            {ixt0, iyt1},
+            {ixt1, iyt1},
+            {ixt1, iyt0}
+        };
     }
     const size_t nInner = inner_bot_cw.size();    /// 4 (sharp) or 4*(segs+1) (round)
 
@@ -999,35 +1012,50 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
     const size_t inner_wall_vtx_start = m_vertices.size();    /// = 16
     for (size_t i = 0; i < nInner; i++) {
         const size_t j = (i + 1) % nInner;
-        addQuadFlatAuto({inner_bot_cw[i][0], inner_bot_cw[i][1], 0.0f},
-                        {inner_bot_cw[j][0], inner_bot_cw[j][1], 0.0f},
+        addQuadFlatAuto({inner_bot_cw[i][0], inner_bot_cw[i][1], 0.0f}, {inner_bot_cw[j][0], inner_bot_cw[j][1], 0.0f},
                         {inner_top_cw[j][0], inner_top_cw[j][1], z_len},
                         {inner_top_cw[i][0], inner_top_cw[i][1], z_len});
     }
 
     /// ---- cap faces (earcut: outer CCW, hole CW) ----
     ECPolygons bottom_polys(2), top_polys(2);
-    bottom_polys[0] = {{0.0f, 0.0f}, {outer_xlen, 0.0f}, {outer_xlen, outer_ylen}, {0.0f, outer_ylen}};
+    bottom_polys[0] = {
+        {0.0f,       0.0f      },
+        {outer_xlen, 0.0f      },
+        {outer_xlen, outer_ylen},
+        {0.0f,       outer_ylen}
+    };
     bottom_polys[1] = inner_bot_cw;
-    top_polys[0]    = {{0.0f, 0.0f}, {outer_xlen, 0.0f}, {outer_xlen, outer_ylen}, {0.0f, outer_ylen}};
-    top_polys[1]    = inner_top_cw;
+    top_polys[0]    = {
+        {0.0f,       0.0f      },
+        {outer_xlen, 0.0f      },
+        {outer_xlen, outer_ylen},
+        {0.0f,       outer_ylen}
+    };
+    top_polys[1] = inner_top_cw;
 
     /// earcut indices map into the flattened ring list: outer 4 pts first, then hole nInner pts.
     std::vector<Point3f> bpoints, tpoints;
     bpoints.reserve(4 + nInner);
     tpoints.reserve(4 + nInner);
-    bpoints.insert(bpoints.end(),
-                   {{0.0f, 0.0f, 0.0f},
-                    {outer_xlen, 0.0f, 0.0f},
-                    {outer_xlen, outer_ylen, 0.0f},
-                    {0.0f, outer_ylen, 0.0f}});
-    tpoints.insert(tpoints.end(),
-                   {{0.0f, 0.0f, z_len},
-                    {outer_xlen, 0.0f, z_len},
-                    {outer_xlen, outer_ylen, z_len},
-                    {0.0f, outer_ylen, z_len}});
-    for (const auto& p : inner_bot_cw) bpoints.push_back({p[0], p[1], 0.0f});
-    for (const auto& p : inner_top_cw) tpoints.push_back({p[0], p[1], z_len});
+    bpoints.insert(
+        bpoints.end(),
+        {
+            {0.0f,       0.0f,       0.0f},
+            {outer_xlen, 0.0f,       0.0f},
+            {outer_xlen, outer_ylen, 0.0f},
+            {0.0f,       outer_ylen, 0.0f}
+    });
+    tpoints.insert(tpoints.end(), {
+                                      {0.0f,       0.0f,       z_len},
+                                      {outer_xlen, 0.0f,       z_len},
+                                      {outer_xlen, outer_ylen, z_len},
+                                      {0.0f,       outer_ylen, z_len}
+    });
+    for (const auto& p : inner_bot_cw)
+        bpoints.push_back({p[0], p[1], 0.0f});
+    for (const auto& p : inner_top_cw)
+        tpoints.push_back({p[0], p[1], z_len});
 
     const auto ear_bottom = mapbox::earcut<unsigned int>(bottom_polys);
     for (size_t k = 0; k + 2 < ear_bottom.size(); k += 3) {
