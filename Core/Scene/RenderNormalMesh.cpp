@@ -3,6 +3,11 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <limits>
+#include <queue>
+#include <unordered_map>
+#include <unordered_set>
 #include "earcut.hpp"
 
 #include "Math/Point2f.h"
@@ -731,45 +736,574 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
 
 namespace {
 
-// axis: 0=X (断面YZ, 押し出しX方向), 1=Y (断面XZ, 押し出しY方向), 2=Z (断面XY, 押し出しZ方向)
-static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsigned int>& m_indices,
-                              std::vector<unsigned int>& m_segments_indices, bool m_create_section_line,
-                              const VecPoint2f& vertices, float height, int axis)
+constexpr float kPolygonEps             = 1.0e-6f;
+constexpr int   kPairGridThreshold      = 96;
+constexpr int   kPairGridCellSpanSafety = 64;
+
+struct Segment2D {
+    Point2f            p0;
+    Point2f            p1;
+    std::vector<float> ts;
+};
+
+struct SplitEdge {
+    int v0;
+    int v1;
+};
+
+struct DirectedEdge {
+    int from = -1;
+    int to   = -1;
+    int twin = -1;
+    int next = -1;
+    int face = -1;    // left face
+};
+
+struct Face2D {
+    std::vector<int> edges;
+    std::vector<int> vertices;
+    float            area   = 0.0f;
+    int              parity = -1;
+};
+
+static inline float cross2d(const Point2f& a, const Point2f& b) { return a.x() * b.y() - a.y() * b.x(); }
+
+static inline Point2f sub2d(const Point2f& a, const Point2f& b) { return {a.x() - b.x(), a.y() - b.y()}; }
+
+static inline float signedArea(const std::vector<Point2f>& poly)
 {
-    m_vertices.clear();
-    m_indices.clear();
-    m_segments_indices.clear();
-
-    if (vertices.size() < 3 || height <= 0.0f) {
-        return;
-    }
-
-    std::vector<Point2f> poly(vertices.begin(), vertices.end());
-    if (poly.size() >= 2) {
-        const Point2f& a = poly.front();
-        const Point2f& b = poly.back();
-        if (std::fabs(a.x() - b.x()) < 1.0e-7f && std::fabs(a.y() - b.y()) < 1.0e-7f) {
-            poly.pop_back();
-        }
-    }
-    if (poly.size() < 3) {
-        return;
-    }
-
-    float signed_area = 0.0f;
+    float area = 0.0f;
     for (size_t i = 0; i < poly.size(); i++) {
         const size_t j = (i + 1) % poly.size();
-        signed_area += poly[i].x() * poly[j].y() - poly[j].x() * poly[i].y();
+        area += poly[i].x() * poly[j].y() - poly[j].x() * poly[i].y();
     }
-    signed_area *= 0.5f;
-    if (std::fabs(signed_area) < 1.0e-7f) {
-        return;
+    return area * 0.5f;
+}
+
+static inline bool nearEq(float a, float b, float eps) { return std::fabs(a - b) <= eps; }
+
+static inline bool pointNear(const Point2f& a, const Point2f& b, float eps)
+{
+    return nearEq(a.x(), b.x(), eps) && nearEq(a.y(), b.y(), eps);
+}
+
+static std::vector<Point2f> normalizeStrokeLoop(const VecPoint2f& vertices, float eps)
+{
+    std::vector<Point2f> poly;
+    poly.reserve(vertices.size());
+    for (const auto& p : vertices) {
+        if (poly.empty() || !pointNear(poly.back(), p, eps)) {
+            poly.emplace_back(p);
+        }
     }
-    // 全軸でearcutに渡す前にCCW(正の符号付き面積)に統一する
-    if (signed_area < 0.0f) {
-        std::reverse(poly.begin(), poly.end());
+    if (poly.size() >= 2 && pointNear(poly.front(), poly.back(), eps)) {
+        poly.pop_back();
+    }
+    if (poly.size() < 3) {
+        return {};
     }
 
+    bool changed = true;
+    int  guard   = 0;
+    while (changed && poly.size() >= 3 && guard < 8) {
+        changed = false;
+        guard++;
+        std::vector<Point2f> filtered;
+        filtered.reserve(poly.size());
+        const size_t n = poly.size();
+        for (size_t i = 0; i < n; i++) {
+            const Point2f& a = poly[(i + n - 1) % n];
+            const Point2f& b = poly[i];
+            const Point2f& c = poly[(i + 1) % n];
+            const Point2f  ab = sub2d(b, a);
+            const Point2f  bc = sub2d(c, b);
+            const float    len_ab = std::sqrt(ab.x() * ab.x() + ab.y() * ab.y());
+            const float    len_bc = std::sqrt(bc.x() * bc.x() + bc.y() * bc.y());
+            const float    denom  = std::max(len_ab + len_bc, eps);
+            const float    area2  = std::fabs(cross2d(ab, bc));
+            if (area2 <= eps * denom) {
+                changed = true;
+                continue;
+            }
+            filtered.emplace_back(b);
+        }
+        poly.swap(filtered);
+    }
+
+    if (poly.size() < 3 || std::fabs(signedArea(poly)) < eps) {
+        return {};
+    }
+    return poly;
+}
+
+static bool intersectSegments(const Point2f& a, const Point2f& b, const Point2f& c, const Point2f& d, float eps,
+                              float& t_out, float& u_out, Point2f& p_out)
+{
+    const Point2f r = sub2d(b, a);
+    const Point2f s = sub2d(d, c);
+    const Point2f w = sub2d(c, a);
+    const float   den = cross2d(r, s);
+
+    if (std::fabs(den) <= eps) {
+        // parallel/collinear: overlap case is treated as "intersecting" for fast-path rejection
+        if (std::fabs(cross2d(w, r)) <= eps) {
+            const float minax = std::min(a.x(), b.x()) - eps;
+            const float maxax = std::max(a.x(), b.x()) + eps;
+            const float minay = std::min(a.y(), b.y()) - eps;
+            const float maxay = std::max(a.y(), b.y()) + eps;
+            const float mincx = std::min(c.x(), d.x()) - eps;
+            const float maxcx = std::max(c.x(), d.x()) + eps;
+            const float mincy = std::min(c.y(), d.y()) - eps;
+            const float maxcy = std::max(c.y(), d.y()) + eps;
+            const bool  overlap =
+                (std::max(minax, mincx) <= std::min(maxax, maxcx)) && (std::max(minay, mincy) <= std::min(maxay, maxcy));
+            if (overlap) {
+                t_out = 0.0f;
+                u_out = 0.0f;
+                p_out = a;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    const float t = cross2d(w, s) / den;
+    const float u = cross2d(w, r) / den;
+    if (t < -eps || t > 1.0f + eps || u < -eps || u > 1.0f + eps) {
+        return false;
+    }
+
+    const float tc = std::clamp(t, 0.0f, 1.0f);
+    const float uc = std::clamp(u, 0.0f, 1.0f);
+    t_out          = tc;
+    u_out          = uc;
+    p_out          = {a.x() + (b.x() - a.x()) * tc, a.y() + (b.y() - a.y()) * tc};
+    return true;
+}
+
+static inline bool isAdjacent(size_t i, size_t j, size_t n)
+{
+    if (i == j) {
+        return true;
+    }
+    if ((i + 1) % n == j || (j + 1) % n == i) {
+        return true;
+    }
+    return false;
+}
+
+static uint64_t pairKey32(uint32_t a, uint32_t b)
+{
+    const uint32_t lo = std::min(a, b);
+    const uint32_t hi = std::max(a, b);
+    return (uint64_t)hi << 32 | (uint64_t)lo;
+}
+
+static std::vector<std::pair<int, int>> enumerateCandidatePairs(const std::vector<Point2f>& poly)
+{
+    const size_t n = poly.size();
+    std::vector<std::pair<int, int>> out;
+    if (n < 4) {
+        return out;
+    }
+
+    if ((int)n <= kPairGridThreshold) {
+        out.reserve(n * 3);
+        for (size_t i = 0; i < n; i++) {
+            for (size_t j = i + 1; j < n; j++) {
+                if (isAdjacent(i, j, n)) {
+                    continue;
+                }
+                out.emplace_back((int)i, (int)j);
+            }
+        }
+        return out;
+    }
+
+    float minx = std::numeric_limits<float>::max();
+    float miny = std::numeric_limits<float>::max();
+    float maxx = -std::numeric_limits<float>::max();
+    float maxy = -std::numeric_limits<float>::max();
+    float sum_len = 0.0f;
+    for (size_t i = 0; i < n; i++) {
+        const Point2f& p0 = poly[i];
+        const Point2f& p1 = poly[(i + 1) % n];
+        minx              = std::min({minx, p0.x(), p1.x()});
+        miny              = std::min({miny, p0.y(), p1.y()});
+        maxx              = std::max({maxx, p0.x(), p1.x()});
+        maxy              = std::max({maxy, p0.y(), p1.y()});
+        const float dx = p1.x() - p0.x();
+        const float dy = p1.y() - p0.y();
+        sum_len += std::sqrt(dx * dx + dy * dy);
+    }
+    const float avg_len  = std::max(sum_len / (float)n, kPolygonEps * 16.0f);
+    const float cellSize = avg_len;
+
+    auto cellKey = [](int ix, int iy) -> uint64_t {
+        return (uint64_t)(uint32_t)ix << 32 | (uint32_t)iy;
+    };
+
+    std::unordered_map<uint64_t, std::vector<int>> buckets;
+    buckets.reserve(n * 2);
+    std::unordered_set<uint64_t> pair_set;
+    pair_set.reserve(n * 8);
+
+    for (size_t i = 0; i < n; i++) {
+        const Point2f& a = poly[i];
+        const Point2f& b = poly[(i + 1) % n];
+        const float xmin = std::min(a.x(), b.x());
+        const float xmax = std::max(a.x(), b.x());
+        const float ymin = std::min(a.y(), b.y());
+        const float ymax = std::max(a.y(), b.y());
+        int         ix0  = (int)std::floor((xmin - minx) / cellSize);
+        int         ix1  = (int)std::floor((xmax - minx) / cellSize);
+        int         iy0  = (int)std::floor((ymin - miny) / cellSize);
+        int         iy1  = (int)std::floor((ymax - miny) / cellSize);
+
+        if (ix1 - ix0 > kPairGridCellSpanSafety || iy1 - iy0 > kPairGridCellSpanSafety) {
+            for (size_t j = 0; j < i; j++) {
+                if (isAdjacent(i, j, n)) {
+                    continue;
+                }
+                pair_set.insert(pairKey32((uint32_t)i, (uint32_t)j));
+            }
+            continue;
+        }
+
+        for (int ix = ix0; ix <= ix1; ix++) {
+            for (int iy = iy0; iy <= iy1; iy++) {
+                auto& cell = buckets[cellKey(ix, iy)];
+                for (int j : cell) {
+                    if (isAdjacent(i, (size_t)j, n)) {
+                        continue;
+                    }
+                    pair_set.insert(pairKey32((uint32_t)i, (uint32_t)j));
+                }
+                cell.emplace_back((int)i);
+            }
+        }
+    }
+
+    out.reserve(pair_set.size());
+    for (uint64_t key : pair_set) {
+        out.emplace_back((int)(key & 0xffffffffu), (int)(key >> 32));
+    }
+    return out;
+}
+
+static bool hasSelfIntersection(const std::vector<Point2f>& poly, float eps)
+{
+    const auto pairs = enumerateCandidatePairs(poly);
+    for (const auto& [i, j] : pairs) {
+        float   t = 0.0f, u = 0.0f;
+        Point2f p;
+        if (intersectSegments(poly[i], poly[(i + 1) % poly.size()], poly[j], poly[(j + 1) % poly.size()], eps, t, u, p)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool appendUniqueParam(std::vector<float>& ts, float t, float eps)
+{
+    for (float v : ts) {
+        if (std::fabs(v - t) <= eps) {
+            return false;
+        }
+    }
+    ts.emplace_back(t);
+    return true;
+}
+
+static bool buildPlanarSplitGraph(const std::vector<Point2f>& poly, float eps, std::vector<Point2f>& out_vertices,
+                                  std::vector<SplitEdge>& out_edges)
+{
+    const size_t n = poly.size();
+    if (n < 3) {
+        return false;
+    }
+
+    std::vector<Segment2D> segs(n);
+    for (size_t i = 0; i < n; i++) {
+        segs[i].p0 = poly[i];
+        segs[i].p1 = poly[(i + 1) % n];
+        segs[i].ts = {0.0f, 1.0f};
+    }
+
+    const auto pairs = enumerateCandidatePairs(poly);
+    for (const auto& [i, j] : pairs) {
+        float   t = 0.0f, u = 0.0f;
+        Point2f p;
+        if (!intersectSegments(segs[i].p0, segs[i].p1, segs[j].p0, segs[j].p1, eps, t, u, p)) {
+            continue;
+        }
+        appendUniqueParam(segs[i].ts, std::clamp(t, 0.0f, 1.0f), eps);
+        appendUniqueParam(segs[j].ts, std::clamp(u, 0.0f, 1.0f), eps);
+    }
+
+    struct Key {
+        int64_t x = 0;
+        int64_t y = 0;
+        bool    operator==(const Key& other) const { return x == other.x && y == other.y; }
+    };
+    struct KeyHash {
+        size_t operator()(const Key& k) const
+        {
+            return std::hash<uint64_t>{}((uint64_t)k.x * 1315423911ull ^ (uint64_t)k.y * 2654435761ull);
+        }
+    };
+
+    auto makeKey = [eps](const Point2f& p) -> Key {
+        return {std::llround((double)p.x() / (double)eps), std::llround((double)p.y() / (double)eps)};
+    };
+
+    std::unordered_map<Key, int, KeyHash> vertex_map;
+    vertex_map.reserve(n * 3);
+
+    auto vertexId = [&](const Point2f& p) -> int {
+        Key  key = makeKey(p);
+        auto it  = vertex_map.find(key);
+        if (it != vertex_map.end()) {
+            return it->second;
+        }
+        const int id = (int)out_vertices.size();
+        out_vertices.emplace_back(p);
+        vertex_map.emplace(key, id);
+        return id;
+    };
+
+    std::unordered_set<uint64_t> edge_set;
+    edge_set.reserve(n * 4);
+
+    auto addEdge = [&](int a, int b) {
+        if (a == b) {
+            return;
+        }
+        uint32_t lo  = (uint32_t)std::min(a, b);
+        uint32_t hi  = (uint32_t)std::max(a, b);
+        uint64_t key = ((uint64_t)hi << 32) | (uint64_t)lo;
+        if (!edge_set.insert(key).second) {
+            return;
+        }
+        out_edges.push_back({a, b});
+    };
+
+    const float split_eps = std::max(eps * 0.5f, 1.0e-7f);
+    for (auto& seg : segs) {
+        auto& ts = seg.ts;
+        std::sort(ts.begin(), ts.end());
+        ts.erase(std::unique(ts.begin(), ts.end(), [split_eps](float a, float b) { return std::fabs(a - b) <= split_eps; }),
+                 ts.end());
+        for (size_t k = 0; k + 1 < ts.size(); k++) {
+            const float t0 = ts[k];
+            const float t1 = ts[k + 1];
+            if (t1 - t0 <= split_eps) {
+                continue;
+            }
+            const Point2f p0 = {seg.p0.x() + (seg.p1.x() - seg.p0.x()) * t0, seg.p0.y() + (seg.p1.y() - seg.p0.y()) * t0};
+            const Point2f p1 = {seg.p0.x() + (seg.p1.x() - seg.p0.x()) * t1, seg.p0.y() + (seg.p1.y() - seg.p0.y()) * t1};
+            addEdge(vertexId(p0), vertexId(p1));
+        }
+    }
+
+    return out_vertices.size() >= 3 && !out_edges.empty();
+}
+
+static bool buildFacesFromPlanarGraph(const std::vector<Point2f>& vtx2d, const std::vector<SplitEdge>& edges,
+                                      std::vector<DirectedEdge>& out_dir_edges, std::vector<Face2D>& out_faces)
+{
+    if (vtx2d.size() < 3 || edges.empty()) {
+        return false;
+    }
+
+    out_dir_edges.clear();
+    out_faces.clear();
+    out_dir_edges.reserve(edges.size() * 2);
+
+    std::vector<std::vector<int>> outgoing(vtx2d.size());
+    for (const auto& e : edges) {
+        const int idx0 = (int)out_dir_edges.size();
+        out_dir_edges.push_back({e.v0, e.v1, idx0 + 1, -1, -1});
+        out_dir_edges.push_back({e.v1, e.v0, idx0 + 0, -1, -1});
+        outgoing[e.v0].push_back(idx0 + 0);
+        outgoing[e.v1].push_back(idx0 + 1);
+    }
+
+    std::vector<int> edge_rank(out_dir_edges.size(), -1);
+    for (size_t v = 0; v < outgoing.size(); v++) {
+        auto& out = outgoing[v];
+        std::sort(out.begin(), out.end(), [&](int lhs, int rhs) {
+            const Point2f& p = vtx2d[v];
+            const Point2f& a = vtx2d[out_dir_edges[lhs].to];
+            const Point2f& b = vtx2d[out_dir_edges[rhs].to];
+            const float    aa = std::atan2(a.y() - p.y(), a.x() - p.x());
+            const float    bb = std::atan2(b.y() - p.y(), b.x() - p.x());
+            return aa < bb;
+        });
+        for (int i = 0; i < (int)out.size(); i++) {
+            edge_rank[out[i]] = i;
+        }
+    }
+
+    for (size_t e = 0; e < out_dir_edges.size(); e++) {
+        const int twin = out_dir_edges[e].twin;
+        const int v    = out_dir_edges[e].to;
+        auto&     out  = outgoing[v];
+        if (out.empty()) {
+            continue;
+        }
+        const int rank = edge_rank[twin];
+        if (rank < 0) {
+            continue;
+        }
+        const int prev_rank      = (rank - 1 + (int)out.size()) % (int)out.size();
+        out_dir_edges[e].next = out[prev_rank];
+    }
+
+    std::vector<char> visited(out_dir_edges.size(), 0);
+    for (size_t start = 0; start < out_dir_edges.size(); start++) {
+        if (visited[start] || out_dir_edges[start].next < 0) {
+            continue;
+        }
+        std::vector<int> cycle_edges;
+        std::vector<int> cycle_vertices;
+        int              e     = (int)start;
+        int              guard = 0;
+        while (!visited[e] && guard <= (int)out_dir_edges.size() + 1) {
+            visited[e] = 1;
+            cycle_edges.push_back(e);
+            cycle_vertices.push_back(out_dir_edges[e].from);
+            e = out_dir_edges[e].next;
+            if (e == (int)start) {
+                break;
+            }
+            guard++;
+        }
+        if (cycle_edges.size() < 3 || e != (int)start) {
+            continue;
+        }
+
+        float area = 0.0f;
+        for (size_t i = 0; i < cycle_vertices.size(); i++) {
+            const Point2f& p0 = vtx2d[cycle_vertices[i]];
+            const Point2f& p1 = vtx2d[cycle_vertices[(i + 1) % cycle_vertices.size()]];
+            area += p0.x() * p1.y() - p1.x() * p0.y();
+        }
+        area *= 0.5f;
+        if (std::fabs(area) <= kPolygonEps) {
+            continue;
+        }
+
+        const int fid = (int)out_faces.size();
+        out_faces.push_back({std::move(cycle_edges), std::move(cycle_vertices), area, -1});
+        for (int edge_id : out_faces.back().edges) {
+            out_dir_edges[edge_id].face = fid;
+        }
+    }
+
+    return !out_faces.empty();
+}
+
+static void computeParity(std::vector<DirectedEdge>& dir_edges, std::vector<Face2D>& faces)
+{
+    if (faces.empty()) {
+        return;
+    }
+
+    int   outside = 0;
+    float min_area = std::numeric_limits<float>::max();
+    for (size_t i = 0; i < faces.size(); i++) {
+        if (faces[i].area < min_area) {
+            min_area = faces[i].area;
+            outside  = (int)i;
+        }
+    }
+
+    std::vector<std::vector<int>> graph(faces.size());
+    for (size_t e = 0; e + 1 < dir_edges.size(); e += 2) {
+        const int f0 = dir_edges[e].face;
+        const int f1 = dir_edges[e + 1].face;
+        if (f0 < 0 || f1 < 0 || f0 == f1) {
+            continue;
+        }
+        graph[f0].push_back(f1);
+        graph[f1].push_back(f0);
+    }
+
+    std::queue<int> q;
+    faces[outside].parity = 0;
+    q.push(outside);
+    while (!q.empty()) {
+        const int f = q.front();
+        q.pop();
+        for (int nb : graph[f]) {
+            if (faces[nb].parity >= 0) {
+                continue;
+            }
+            faces[nb].parity = faces[f].parity ^ 1;
+            q.push(nb);
+        }
+    }
+    for (auto& f : faces) {
+        if (f.parity < 0) {
+            f.parity = 0;
+        }
+    }
+}
+
+static void appendSideQuad(std::vector<Vertexf>& m_vertices, std::vector<unsigned int>& m_indices,
+                           std::vector<unsigned int>& m_segments_indices, bool m_create_section_line, const Point3f& p0,
+                           const Point3f& p1, const Point3f& p2, const Point3f& p3, int axis)
+{
+    auto addQuadN = [&](const Point3f& q0, const Point3f& n0, const Point3f& q1, const Point3f& n1, const Point3f& q2,
+                        const Point3f& n2, const Point3f& q3, const Point3f& n3) {
+        const unsigned int base = (unsigned int)m_vertices.size();
+        m_vertices.emplace_back(q0, n0);
+        m_vertices.emplace_back(q1, n1);
+        m_vertices.emplace_back(q2, n2);
+        m_vertices.emplace_back(q3, n3);
+        m_indices.emplace_back(base + 0);
+        m_indices.emplace_back(base + 1);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 3);
+        m_indices.emplace_back(base + 0);
+        if (m_create_section_line) {
+            m_segments_indices.emplace_back(base + 0);
+            m_segments_indices.emplace_back(base + 1);
+            m_segments_indices.emplace_back(base + 3);
+            m_segments_indices.emplace_back(base + 2);
+            m_segments_indices.emplace_back(base + 0);
+            m_segments_indices.emplace_back(base + 3);
+        }
+    };
+
+    if (axis == 1) {
+        const Point3f n = ((p0 - p1) ^ (p3 - p1)).normalized();
+        addQuadN(p1, n, p0, n, p3, n, p2, n);
+    }
+    else {
+        const Point3f n = ((p1 - p0) ^ (p2 - p0)).normalized();
+        addQuadN(p0, n, p1, n, p2, n, p3, n);
+    }
+}
+
+static void appendCapTri(std::vector<Vertexf>& m_vertices, std::vector<unsigned int>& m_indices, const Point3f& a,
+                         const Point3f& b, const Point3f& c, const Point3f& n)
+{
+    const unsigned int base = (unsigned int)m_vertices.size();
+    m_vertices.emplace_back(a, n);
+    m_vertices.emplace_back(b, n);
+    m_vertices.emplace_back(c, n);
+    m_indices.emplace_back(base + 0);
+    m_indices.emplace_back(base + 1);
+    m_indices.emplace_back(base + 2);
+}
+
+static void buildSimplePolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsigned int>& m_indices,
+                                    std::vector<unsigned int>& m_segments_indices, bool m_create_section_line,
+                                    const std::vector<Point2f>& poly, float height, int axis)
+{
     // 2D断面座標 (a, b) → 3D底面点 / 頂面点
     auto makeBase = [&](float a, float b) -> Point3f {
         switch (axis) {
@@ -792,30 +1326,6 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
         }
     };
 
-    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
-                        const Point3f& n2, const Point3f& p3, const Point3f& n3) {
-        const unsigned int base = (unsigned int)m_vertices.size();
-        m_vertices.emplace_back(p0, n0);
-        m_vertices.emplace_back(p1, n1);
-        m_vertices.emplace_back(p2, n2);
-        m_vertices.emplace_back(p3, n3);
-        m_indices.emplace_back(base + 0);
-        m_indices.emplace_back(base + 1);
-        m_indices.emplace_back(base + 2);
-        m_indices.emplace_back(base + 2);
-        m_indices.emplace_back(base + 3);
-        m_indices.emplace_back(base + 0);
-    };
-    auto addTriFlat = [&](const Point3f& a, const Point3f& b, const Point3f& c, const Point3f& n) {
-        const unsigned int base = (unsigned int)m_vertices.size();
-        m_vertices.emplace_back(a, n);
-        m_vertices.emplace_back(b, n);
-        m_vertices.emplace_back(c, n);
-        m_indices.emplace_back(base + 0);
-        m_indices.emplace_back(base + 1);
-        m_indices.emplace_back(base + 2);
-    };
-
     // 側面
     for (size_t i = 0; i < poly.size(); i++) {
         const size_t  j  = (i + 1) % poly.size();
@@ -823,16 +1333,7 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
         const Point3f p1 = makeBase(poly[j].x(), poly[j].y());
         const Point3f p2 = makeTop(poly[j].x(), poly[j].y());
         const Point3f p3 = makeTop(poly[i].x(), poly[i].y());
-        if (axis == 1) {
-            // Y軸: XZ断面でCCWは法線が-Y方向になるため、頂点順を逆にして外向き法線を得る
-            // 頂点順: q0=p1, q1=p0, q2=p3, q3=p2 → 法線 = (q1-q0)×(q2-q0) = (p0-p1)×(p3-p1)
-            const Point3f n = ((p0 - p1) ^ (p3 - p1)).normalized();
-            addQuadN(p1, n, p0, n, p3, n, p2, n);
-        }
-        else {
-            const Point3f n = ((p1 - p0) ^ (p2 - p0)).normalized();
-            addQuadN(p0, n, p1, n, p2, n, p3, n);
-        }
+        appendSideQuad(m_vertices, m_indices, m_segments_indices, m_create_section_line, p0, p1, p2, p3, axis);
     }
 
     // 蓋 (earcut による三角形分割)
@@ -867,28 +1368,158 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
     for (size_t k = 0; k + 2 < ear.size(); k += 3) {
         const unsigned int i0 = ear[k + 0], i1 = ear[k + 1], i2 = ear[k + 2];
         if (axis == 1) {
-            // Y軸: earcutのCCW三角形はXZ断面で法線-Y → 底面(y=0)は同順(外向き-Y), 頂面(y=h)は逆順(外向き+Y)
-            addTriFlat(cap_base[i0], cap_base[i1], cap_base[i2], norm_base);
-            addTriFlat(cap_top[i2], cap_top[i1], cap_top[i0], norm_top);
+            appendCapTri(m_vertices, m_indices, cap_base[i0], cap_base[i1], cap_base[i2], norm_base);
+            appendCapTri(m_vertices, m_indices, cap_top[i2], cap_top[i1], cap_top[i0], norm_top);
         }
         else {
-            // X軸: CCW in YZ → 法線+X; Z軸: CCW in XY → 法線+Z
-            // 底面(x=0 or z=0): 逆順(外向き-X or -Z), 頂面: 同順(外向き+X or +Z)
-            addTriFlat(cap_base[i2], cap_base[i1], cap_base[i0], norm_base);
-            addTriFlat(cap_top[i0], cap_top[i1], cap_top[i2], norm_top);
+            appendCapTri(m_vertices, m_indices, cap_base[i2], cap_base[i1], cap_base[i0], norm_base);
+            appendCapTri(m_vertices, m_indices, cap_top[i0], cap_top[i1], cap_top[i2], norm_top);
         }
     }
+}
 
-    // セクションライン
-    if (m_create_section_line) {
-        for (size_t i = 0; i < poly.size(); i++) {
-            const size_t side_base = i * 4;
-            m_segments_indices.emplace_back((unsigned int)(side_base + 0));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 1));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 3));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 2));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 0));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 3));
+// axis: 0=X (断面YZ, 押し出しX方向), 1=Y (断面XZ, 押し出しY方向), 2=Z (断面XY, 押し出しZ方向)
+static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsigned int>& m_indices,
+                              std::vector<unsigned int>& m_segments_indices, bool m_create_section_line,
+                              const VecPoint2f& vertices, float height, int axis)
+{
+    m_vertices.clear();
+    m_indices.clear();
+    m_segments_indices.clear();
+
+    if (vertices.size() < 3 || height <= 0.0f) {
+        return;
+    }
+
+    std::vector<Point2f> poly = normalizeStrokeLoop(vertices, kPolygonEps);
+    if (poly.size() < 3) {
+        return;
+    }
+
+    float signed_area = signedArea(poly);
+    if (signed_area < 0.0f) {
+        std::reverse(poly.begin(), poly.end());
+        signed_area = -signed_area;
+    }
+    if (signed_area < kPolygonEps) {
+        return;
+    }
+
+    // Fast path: 単純ループは従来の earcut 直行
+    if (!hasSelfIntersection(poly, kPolygonEps)) {
+        buildSimplePolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, poly, height, axis);
+        return;
+    }
+
+    // General path: 交点分割 → 平面グラフ → face parity
+    std::vector<Point2f> graph_vertices;
+    std::vector<SplitEdge> graph_edges;
+    if (!buildPlanarSplitGraph(poly, kPolygonEps, graph_vertices, graph_edges)) {
+        return;
+    }
+
+    std::vector<DirectedEdge> dir_edges;
+    std::vector<Face2D>       faces;
+    if (!buildFacesFromPlanarGraph(graph_vertices, graph_edges, dir_edges, faces)) {
+        return;
+    }
+    computeParity(dir_edges, faces);
+
+    auto makeBase = [&](float a, float b) -> Point3f {
+        switch (axis) {
+            case 0:
+                return {0.0f, a, b};    // X軸: 底面 x=0
+            case 1:
+                return {a, 0.0f, b};    // Y軸: 底面 y=0
+            default:
+                return {a, b, 0.0f};    // Z軸: 底面 z=0
+        }
+    };
+    auto makeTop = [&](float a, float b) -> Point3f {
+        switch (axis) {
+            case 0:
+                return {height, a, b};    // X軸: 頂面 x=height
+            case 1:
+                return {a, height, b};    // Y軸: 頂面 y=height
+            default:
+                return {a, b, height};    // Z軸: 頂面 z=height
+        }
+    };
+
+    Point3f norm_base, norm_top;
+    if (axis == 0) {
+        norm_base = {-1.0f, 0.0f, 0.0f};
+        norm_top  = {1.0f, 0.0f, 0.0f};
+    }
+    else if (axis == 1) {
+        norm_base = {0.0f, -1.0f, 0.0f};
+        norm_top  = {0.0f, 1.0f, 0.0f};
+    }
+    else {
+        norm_base = {0.0f, 0.0f, -1.0f};
+        norm_top  = {0.0f, 0.0f, 1.0f};
+    }
+
+    // parity が異なる面を隔てる辺のみ側面化
+    for (size_t e = 0; e + 1 < dir_edges.size(); e += 2) {
+        const int f0 = dir_edges[e].face;
+        const int f1 = dir_edges[e + 1].face;
+        const int p0 = (f0 >= 0) ? faces[f0].parity : 0;
+        const int p1 = (f1 >= 0) ? faces[f1].parity : 0;
+        if (p0 == p1) {
+            continue;
+        }
+        const int     edge_id = (p0 == 1) ? (int)e : (int)e + 1;
+        const int     from    = dir_edges[edge_id].from;
+        const int     to      = dir_edges[edge_id].to;
+        const Point2f a2      = graph_vertices[from];
+        const Point2f b2      = graph_vertices[to];
+        const Point3f pbase0  = makeBase(a2.x(), a2.y());
+        const Point3f pbase1  = makeBase(b2.x(), b2.y());
+        const Point3f ptop1   = makeTop(b2.x(), b2.y());
+        const Point3f ptop0   = makeTop(a2.x(), a2.y());
+        appendSideQuad(m_vertices, m_indices, m_segments_indices, m_create_section_line, pbase0, pbase1, ptop1, ptop0,
+                       axis);
+    }
+
+    // parity=1 face だけ蓋を生成
+    using ECPolygon = std::vector<std::array<float, 2>>;
+    for (const auto& face : faces) {
+        if (face.parity != 1 || face.vertices.size() < 3) {
+            continue;
+        }
+
+        std::vector<int> ring(face.vertices.begin(), face.vertices.end());
+        if (face.area < 0.0f) {
+            std::reverse(ring.begin(), ring.end());
+        }
+        if (ring.size() < 3) {
+            continue;
+        }
+
+        std::vector<std::vector<std::array<float, 2>>> polygons(1);
+        polygons[0].reserve(ring.size());
+        std::vector<Point3f> cap_base, cap_top;
+        cap_base.reserve(ring.size());
+        cap_top.reserve(ring.size());
+        for (int vid : ring) {
+            const Point2f& p = graph_vertices[vid];
+            polygons[0].push_back({p.x(), p.y()});
+            cap_base.emplace_back(makeBase(p.x(), p.y()));
+            cap_top.emplace_back(makeTop(p.x(), p.y()));
+        }
+
+        const std::vector<unsigned int> ear = mapbox::earcut<unsigned int>(polygons);
+        for (size_t k = 0; k + 2 < ear.size(); k += 3) {
+            const unsigned int i0 = ear[k + 0], i1 = ear[k + 1], i2 = ear[k + 2];
+            if (axis == 1) {
+                appendCapTri(m_vertices, m_indices, cap_base[i0], cap_base[i1], cap_base[i2], norm_base);
+                appendCapTri(m_vertices, m_indices, cap_top[i2], cap_top[i1], cap_top[i0], norm_top);
+            }
+            else {
+                appendCapTri(m_vertices, m_indices, cap_base[i2], cap_base[i1], cap_base[i0], norm_base);
+                appendCapTri(m_vertices, m_indices, cap_top[i0], cap_top[i1], cap_top[i2], norm_top);
+            }
         }
     }
 }
