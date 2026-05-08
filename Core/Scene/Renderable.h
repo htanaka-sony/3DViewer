@@ -149,6 +149,9 @@ public:
     int useCount() const { return m_use_count; }
 
 protected:
+    RenderableObject();
+    RenderableObject(const RenderableObject& other);
+
     void addUseCount() const { m_use_count++; }
     void delUseCount() const { m_use_count--; }
 

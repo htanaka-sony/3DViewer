@@ -10,16 +10,27 @@ CORE_NAMESPACE_BEGIN
 
 DEFINE_META_RENDERABLE(RenderMesh)
 
-RenderMesh::RenderMesh() {}
+RenderMesh::RenderMesh() : RenderableObject() {}
 
 RenderMesh::~RenderMesh() {}
 
-RenderMesh::RenderMesh(const RenderMesh& other)
+RenderMesh::RenderMesh(const RenderMesh& other) : RenderableObject(other)
 {
     m_vertices            = other.m_vertices;
     m_indices             = other.m_indices;
     m_segments_indices    = other.m_segments_indices;
     m_create_section_line = other.m_create_section_line;
+}
+
+void RenderMesh::setFromEditable(const RenderEditableMesh& other)
+{
+    m_vertices = other.isEnableEditDisplayData() ? other.displayEditVertices() : other.displayVertices();
+    m_indices  = other.isEnableEditDisplayData() ? other.displayEditIndices() : other.displayIndices();
+    m_segments_indices =
+        other.isEnableEditDisplayData() ? other.displayEditSegmentIndices() : other.displaySegmentIndices();
+    m_create_section_line = other.originalMesh()->isCreateSectionLine();
+
+    setColor(other.color());
 }
 
 void RenderMesh::createBoxShape(const BoundingBox3f& box)

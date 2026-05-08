@@ -10,6 +10,8 @@
 
 CORE_NAMESPACE_BEGIN
 
+class RenderEditableNormalMesh;
+
 class CORE_EXPORT RenderNormalMesh : public RenderableObject {
     friend class RenderEditableNormalMesh;
     DECLARE_META_RENDERABLE(RenderNormalMesh)
@@ -20,6 +22,8 @@ protected:
     RenderNormalMesh(const RenderNormalMesh& other);
 
 public:
+    void setFromEditable(const RenderEditableNormalMesh& other);
+
     void createBoxShape(const BoundingBox3f& box);
     void createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ, float tol);
 

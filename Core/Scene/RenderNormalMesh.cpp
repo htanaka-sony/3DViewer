@@ -23,12 +23,23 @@ RenderNormalMesh::RenderNormalMesh() {}
 
 RenderNormalMesh::~RenderNormalMesh() {}
 
-RenderNormalMesh::RenderNormalMesh(const RenderNormalMesh& other)
+RenderNormalMesh::RenderNormalMesh(const RenderNormalMesh& other) : RenderableObject(other)
 {
     m_vertices            = other.m_vertices;
     m_indices             = other.m_indices;
     m_segments_indices    = other.m_segments_indices;
     m_create_section_line = other.m_create_section_line;
+}
+
+void RenderNormalMesh::setFromEditable(const RenderEditableNormalMesh& other)
+{
+    m_vertices = other.isEnableEditDisplayData() ? other.displayEditVertices() : other.displayVertices();
+    m_indices  = other.isEnableEditDisplayData() ? other.displayEditIndices() : other.displayIndices();
+    m_segments_indices =
+        other.isEnableEditDisplayData() ? other.displayEditSegmentIndices() : other.displaySegmentIndices();
+    m_create_section_line = other.originalMesh()->isCreateSectionLine();
+
+    setColor(other.color());
 }
 
 void RenderNormalMesh::createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ,
@@ -736,9 +747,9 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
 
 namespace {
 
-constexpr float kPolygonEps             = 1.0e-6f;
-constexpr int   kPairGridThreshold      = 96;
-constexpr int   kPairGridCellSpanSafety = 64;
+constexpr float kPolygonEps                   = 1.0e-6f;
+constexpr int   kPairGridThreshold            = 96;
+constexpr int   kPairGridCellSpanSafety       = 64;
 constexpr int   kCollinearFilterMaxIterations = 8;
 
 struct Segment2D {
@@ -767,9 +778,15 @@ struct Face2D {
     int              parity = -1;
 };
 
-static inline float cross2d(const Point2f& a, const Point2f& b) { return a.x() * b.y() - a.y() * b.x(); }
+static inline float cross2d(const Point2f& a, const Point2f& b)
+{
+    return a.x() * b.y() - a.y() * b.x();
+}
 
-static inline Point2f sub2d(const Point2f& a, const Point2f& b) { return {a.x() - b.x(), a.y() - b.y()}; }
+static inline Point2f sub2d(const Point2f& a, const Point2f& b)
+{
+    return {a.x() - b.x(), a.y() - b.y()};
+}
 
 static inline float signedArea(const std::vector<Point2f>& poly)
 {
@@ -781,7 +798,10 @@ static inline float signedArea(const std::vector<Point2f>& poly)
     return area * 0.5f;
 }
 
-static inline bool nearEq(float a, float b, float eps) { return std::fabs(a - b) <= eps; }
+static inline bool nearEq(float a, float b, float eps)
+{
+    return std::fabs(a - b) <= eps;
+}
 
 static inline bool pointNear(const Point2f& a, const Point2f& b, float eps)
 {
@@ -813,11 +833,11 @@ static std::vector<Point2f> normalizeStrokeLoop(const VecPoint2f& vertices, floa
         filtered.reserve(poly.size());
         const size_t n = poly.size();
         for (size_t i = 0; i < n; i++) {
-            const Point2f& a = poly[(i + n - 1) % n];
-            const Point2f& b = poly[i];
-            const Point2f& c = poly[(i + 1) % n];
-            const Point2f  ab = sub2d(b, a);
-            const Point2f  bc = sub2d(c, b);
+            const Point2f& a      = poly[(i + n - 1) % n];
+            const Point2f& b      = poly[i];
+            const Point2f& c      = poly[(i + 1) % n];
+            const Point2f  ab     = sub2d(b, a);
+            const Point2f  bc     = sub2d(c, b);
             const float    len_ab = std::sqrt(ab.x() * ab.x() + ab.y() * ab.y());
             const float    len_bc = std::sqrt(bc.x() * bc.x() + bc.y() * bc.y());
             const float    denom  = std::max(len_ab + len_bc, eps);
@@ -840,24 +860,24 @@ static std::vector<Point2f> normalizeStrokeLoop(const VecPoint2f& vertices, floa
 static bool intersectSegments(const Point2f& a, const Point2f& b, const Point2f& c, const Point2f& d, float eps,
                               float& t_out, float& u_out, Point2f& p_out)
 {
-    const Point2f r = sub2d(b, a);
-    const Point2f s = sub2d(d, c);
-    const Point2f w = sub2d(c, a);
+    const Point2f r   = sub2d(b, a);
+    const Point2f s   = sub2d(d, c);
+    const Point2f w   = sub2d(c, a);
     const float   den = cross2d(r, s);
 
     if (std::fabs(den) <= eps) {
         // parallel/collinear: overlap case is treated as "intersecting" for fast-path rejection
         if (std::fabs(cross2d(w, r)) <= eps) {
-            const float minax = std::min(a.x(), b.x()) - eps;
-            const float maxax = std::max(a.x(), b.x()) + eps;
-            const float minay = std::min(a.y(), b.y()) - eps;
-            const float maxay = std::max(a.y(), b.y()) + eps;
-            const float mincx = std::min(c.x(), d.x()) - eps;
-            const float maxcx = std::max(c.x(), d.x()) + eps;
-            const float mincy = std::min(c.y(), d.y()) - eps;
-            const float maxcy = std::max(c.y(), d.y()) + eps;
-            const bool  overlap =
-                (std::max(minax, mincx) <= std::min(maxax, maxcx)) && (std::max(minay, mincy) <= std::min(maxay, maxcy));
+            const float minax   = std::min(a.x(), b.x()) - eps;
+            const float maxax   = std::max(a.x(), b.x()) + eps;
+            const float minay   = std::min(a.y(), b.y()) - eps;
+            const float maxay   = std::max(a.y(), b.y()) + eps;
+            const float mincx   = std::min(c.x(), d.x()) - eps;
+            const float maxcx   = std::max(c.x(), d.x()) + eps;
+            const float mincy   = std::min(c.y(), d.y()) - eps;
+            const float maxcy   = std::max(c.y(), d.y()) + eps;
+            const bool  overlap = (std::max(minax, mincx) <= std::min(maxax, maxcx))
+                              && (std::max(minay, mincy) <= std::min(maxay, maxcy));
             if (overlap) {
                 t_out = 0.0f;
                 u_out = 0.0f;
@@ -902,7 +922,7 @@ static uint64_t pairKey32(uint32_t a, uint32_t b)
 
 static std::vector<std::pair<int, int>> enumerateCandidatePairs(const std::vector<Point2f>& poly)
 {
-    const size_t n = poly.size();
+    const size_t                     n = poly.size();
     std::vector<std::pair<int, int>> out;
     if (n < 4) {
         return out;
@@ -921,10 +941,10 @@ static std::vector<std::pair<int, int>> enumerateCandidatePairs(const std::vecto
         return out;
     }
 
-    float minx = std::numeric_limits<float>::max();
-    float miny = std::numeric_limits<float>::max();
-    float maxx = -std::numeric_limits<float>::max();
-    float maxy = -std::numeric_limits<float>::max();
+    float minx    = std::numeric_limits<float>::max();
+    float miny    = std::numeric_limits<float>::max();
+    float maxx    = -std::numeric_limits<float>::max();
+    float maxy    = -std::numeric_limits<float>::max();
     float sum_len = 0.0f;
     for (size_t i = 0; i < n; i++) {
         const Point2f& p0 = poly[i];
@@ -933,16 +953,14 @@ static std::vector<std::pair<int, int>> enumerateCandidatePairs(const std::vecto
         miny              = std::min({miny, p0.y(), p1.y()});
         maxx              = std::max({maxx, p0.x(), p1.x()});
         maxy              = std::max({maxy, p0.y(), p1.y()});
-        const float dx = p1.x() - p0.x();
-        const float dy = p1.y() - p0.y();
+        const float dx    = p1.x() - p0.x();
+        const float dy    = p1.y() - p0.y();
         sum_len += std::sqrt(dx * dx + dy * dy);
     }
     const float avg_len  = std::max(sum_len / (float)n, kPolygonEps * 16.0f);
     const float cellSize = avg_len;
 
-    auto cellKey = [](int ix, int iy) -> uint64_t {
-        return (uint64_t)(uint32_t)ix << 32 | (uint32_t)iy;
-    };
+    auto cellKey = [](int ix, int iy) -> uint64_t { return (uint64_t)(uint32_t)ix << 32 | (uint32_t)iy; };
 
     std::unordered_map<uint64_t, std::vector<int>> buckets;
     buckets.reserve(n * 2);
@@ -950,16 +968,16 @@ static std::vector<std::pair<int, int>> enumerateCandidatePairs(const std::vecto
     pair_set.reserve(n * 8);
 
     for (size_t i = 0; i < n; i++) {
-        const Point2f& a = poly[i];
-        const Point2f& b = poly[(i + 1) % n];
-        const float xmin = std::min(a.x(), b.x());
-        const float xmax = std::max(a.x(), b.x());
-        const float ymin = std::min(a.y(), b.y());
-        const float ymax = std::max(a.y(), b.y());
-        int         ix0  = (int)std::floor((xmin - minx) / cellSize);
-        int         ix1  = (int)std::floor((xmax - minx) / cellSize);
-        int         iy0  = (int)std::floor((ymin - miny) / cellSize);
-        int         iy1  = (int)std::floor((ymax - miny) / cellSize);
+        const Point2f& a    = poly[i];
+        const Point2f& b    = poly[(i + 1) % n];
+        const float    xmin = std::min(a.x(), b.x());
+        const float    xmax = std::max(a.x(), b.x());
+        const float    ymin = std::min(a.y(), b.y());
+        const float    ymax = std::max(a.y(), b.y());
+        int            ix0  = (int)std::floor((xmin - minx) / cellSize);
+        int            ix1  = (int)std::floor((xmax - minx) / cellSize);
+        int            iy0  = (int)std::floor((ymin - miny) / cellSize);
+        int            iy1  = (int)std::floor((ymax - miny) / cellSize);
 
         if (ix1 - ix0 > kPairGridCellSpanSafety || iy1 - iy0 > kPairGridCellSpanSafety) {
             for (size_t j = 0; j < i; j++) {
@@ -998,7 +1016,8 @@ static bool hasSelfIntersection(const std::vector<Point2f>& poly, float eps)
     for (const auto& [i, j] : pairs) {
         float   t = 0.0f, u = 0.0f;
         Point2f p;
-        if (intersectSegments(poly[i], poly[(i + 1) % poly.size()], poly[j], poly[(j + 1) % poly.size()], eps, t, u, p)) {
+        if (intersectSegments(poly[i], poly[(i + 1) % poly.size()], poly[j], poly[(j + 1) % poly.size()], eps, t, u,
+                              p)) {
             return true;
         }
     }
@@ -1093,16 +1112,19 @@ static bool buildPlanarSplitGraph(const std::vector<Point2f>& poly, float eps, s
     for (auto& seg : segs) {
         auto& ts = seg.ts;
         std::sort(ts.begin(), ts.end());
-        ts.erase(std::unique(ts.begin(), ts.end(), [split_eps](float a, float b) { return std::fabs(a - b) <= split_eps; }),
-                 ts.end());
+        ts.erase(
+            std::unique(ts.begin(), ts.end(), [split_eps](float a, float b) { return std::fabs(a - b) <= split_eps; }),
+            ts.end());
         for (size_t k = 0; k + 1 < ts.size(); k++) {
             const float t0 = ts[k];
             const float t1 = ts[k + 1];
             if (t1 - t0 <= split_eps) {
                 continue;
             }
-            const Point2f p0 = {seg.p0.x() + (seg.p1.x() - seg.p0.x()) * t0, seg.p0.y() + (seg.p1.y() - seg.p0.y()) * t0};
-            const Point2f p1 = {seg.p0.x() + (seg.p1.x() - seg.p0.x()) * t1, seg.p0.y() + (seg.p1.y() - seg.p0.y()) * t1};
+            const Point2f p0 = {seg.p0.x() + (seg.p1.x() - seg.p0.x()) * t0,
+                                seg.p0.y() + (seg.p1.y() - seg.p0.y()) * t0};
+            const Point2f p1 = {seg.p0.x() + (seg.p1.x() - seg.p0.x()) * t1,
+                                seg.p0.y() + (seg.p1.y() - seg.p0.y()) * t1};
             addEdge(vertexId(p0), vertexId(p1));
         }
     }
@@ -1134,9 +1156,9 @@ static bool buildFacesFromPlanarGraph(const std::vector<Point2f>& vtx2d, const s
     for (size_t v = 0; v < outgoing.size(); v++) {
         auto& out = outgoing[v];
         std::sort(out.begin(), out.end(), [&](int lhs, int rhs) {
-            const Point2f& p = vtx2d[v];
-            const Point2f& a = vtx2d[out_dir_edges[lhs].to];
-            const Point2f& b = vtx2d[out_dir_edges[rhs].to];
+            const Point2f& p  = vtx2d[v];
+            const Point2f& a  = vtx2d[out_dir_edges[lhs].to];
+            const Point2f& b  = vtx2d[out_dir_edges[rhs].to];
             const float    aa = std::atan2(a.y() - p.y(), a.x() - p.x());
             const float    bb = std::atan2(b.y() - p.y(), b.x() - p.x());
             return aa < bb;
@@ -1157,7 +1179,7 @@ static bool buildFacesFromPlanarGraph(const std::vector<Point2f>& vtx2d, const s
         if (rank < 0) {
             continue;
         }
-        const int prev_rank      = (rank - 1 + (int)out.size()) % (int)out.size();
+        const int prev_rank   = (rank - 1 + (int)out.size()) % (int)out.size();
         out_dir_edges[e].next = out[prev_rank];
     }
 
@@ -1211,7 +1233,7 @@ static void computeParity(std::vector<DirectedEdge>& dir_edges, std::vector<Face
         return;
     }
 
-    int   outside = 0;
+    int   outside  = 0;
     float min_area = std::numeric_limits<float>::max();
     for (size_t i = 0; i < faces.size(); i++) {
         if (faces[i].area < min_area) {
@@ -1413,7 +1435,7 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
     }
 
     // General path: 交点分割 → 平面グラフ → face parity
-    std::vector<Point2f> graph_vertices;
+    std::vector<Point2f>   graph_vertices;
     std::vector<SplitEdge> graph_edges;
     if (!buildPlanarSplitGraph(poly, kPolygonEps, graph_vertices, graph_edges)) {
         return;

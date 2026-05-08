@@ -48,6 +48,7 @@ public:
 
     void  appendChild(Node* child);
     Node* addChild();
+    void  insertChild(Node* child, int index);
 
     void popChild();
 

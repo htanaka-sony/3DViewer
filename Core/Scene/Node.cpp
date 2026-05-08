@@ -77,6 +77,13 @@ Node* Node::addChild()
     return node.ptr();
 }
 
+void Node::insertChild(Node* child, int index)
+{
+    m_children.insert(m_children.begin() + index, child);
+    child->setParent(this);
+    markBoxDirty();
+}
+
 void Node::popChild()
 {
     m_children.pop_back();
@@ -751,11 +758,6 @@ RefPtr<Node> Node::copyInstance()
 
     copy_node->setObject(m_object.ptr());
     copy_node->setMatrix(m_matrix);
-
-    /// RenderDataはNode単位
-    if (m_renderable != nullptr) {
-        copy_node->setRenderable((RenderableNode*)m_renderable->cloneRenderable().ptr());
-    }
 
     /// 暫定 ー ものによってはこれだとダメだと思う
     copy_node->m_attribute.setAttributes(m_attribute.attributes());

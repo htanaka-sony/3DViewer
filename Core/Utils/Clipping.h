@@ -42,6 +42,8 @@ public:
 
     void execute(const VecPlanef& planes, bool only_visible);
 
+    void executeFix(const VecPlanef& planes, bool only_visible);
+
     void execute(const std::vector<PlaneInfo>& plane_info_list, std::vector<TargetNode>& target_list);
 
     bool clear(Node* node, bool only_visible);

@@ -8,15 +8,15 @@ DEFINE_META_OBJECT(Voxel)
 
 static constexpr int g_voxel_comp_length = 2;
 
-Voxel::Voxel()
+Voxel::Voxel() : Shape()
 {
     auto renderable = RenderMesh::createRenderable();
     m_renderable    = renderable.ptr();
 }
 
-Voxel::Voxel(const Voxel& other)
+Voxel::Voxel(const Voxel& other) : Shape(other)
 {
-    m_renderable = other.m_renderable;
+    /// 暫定 : 未実装
 }
 
 Voxel::~Voxel()

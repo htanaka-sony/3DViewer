@@ -12,7 +12,8 @@ Shape::Shape()
 Shape::Shape(const Shape& other)
 {
     // m_color      = other.m_color;
-    m_renderable = other.m_renderable;
+    auto renderable = other.m_renderable->cloneRenderable();
+    m_renderable    = (RenderableObject*)renderable.ptr();
 }
 
 Shape::~Shape() {}

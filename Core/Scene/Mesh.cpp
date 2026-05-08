@@ -5,16 +5,13 @@ CORE_NAMESPACE_BEGIN
 
 DEFINE_META_OBJECT(Mesh)
 
-Mesh::Mesh()
+Mesh::Mesh() : Shape()
 {
     auto renderable = RenderMesh::createRenderable();
     m_renderable    = renderable.ptr();
 }
 
-Mesh::Mesh(const Mesh& other)
-{
-    m_renderable = other.m_renderable;
-}
+Mesh::Mesh(const Mesh& other) : Shape(other) {}
 
 void Mesh::createBoxShape(const BoundingBox3f& box)
 {

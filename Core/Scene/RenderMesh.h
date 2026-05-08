@@ -6,6 +6,8 @@
 
 CORE_NAMESPACE_BEGIN
 
+class RenderEditableMesh;
+
 class CORE_EXPORT RenderMesh : public RenderableObject {
     friend class RenderEditableMesh;
     DECLARE_META_RENDERABLE(RenderMesh)
@@ -16,6 +18,8 @@ protected:
     RenderMesh(const RenderMesh& other);
 
 public:
+    void setFromEditable(const RenderEditableMesh& other);
+
     void createBoxShape(const BoundingBox3f& box);
     void createBoxTaper(const BoundingBox3f& box, float taperDistance);
 

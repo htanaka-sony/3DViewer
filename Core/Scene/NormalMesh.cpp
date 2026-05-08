@@ -5,16 +5,13 @@ CORE_NAMESPACE_BEGIN
 
 DEFINE_META_OBJECT(NormalMesh)
 
-NormalMesh::NormalMesh()
+NormalMesh::NormalMesh() : Shape()
 {
     auto renderable = RenderNormalMesh::createRenderable();
     m_renderable    = renderable.ptr();
 }
 
-NormalMesh::NormalMesh(const NormalMesh& other)
-{
-    m_renderable = other.m_renderable;
-}
+NormalMesh::NormalMesh(const NormalMesh& other) : Shape(other) {}
 
 void NormalMesh::createBoxRound(const BoundingBox3f& box, float radius, float ratioX, float ratioY, float ratioZ,
                                 float tol)

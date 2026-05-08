@@ -4,6 +4,7 @@
 #include <QObject>
 #include "Math/Planef.h"
 #include "Scene/Node.h"
+#include "VoxViewerGlobal.h"
 
 class Vox3DForm;
 
@@ -13,7 +14,7 @@ class Vox3DForm;
 
 using namespace Core;
 
-class ClippingCtrl : public QObject {
+class VOXVIEWER_EXPORT ClippingCtrl : public QObject {
     Q_OBJECT
 
     friend class SuppressUpdateClipping;
@@ -62,6 +63,8 @@ public:
 
     std::vector<std::pair<PlaneIndex, Planef>> currentValidPlanes(const BoundingBox3f& bbox,
                                                                   bool                 get_invalid_any = false);
+
+    void setAreaClippingMode(bool mode) { m_area_clip_mode = mode; }
 
 protected:
     Vox3DForm* m_3DForm = nullptr;
@@ -119,6 +122,8 @@ protected:
     QList<QPair<QString, AnyDir>> m_any_presets;
 
     BoundingBox3f m_all_box;
+
+    bool m_area_clip_mode = false;
 };
 
 #endif    // CLIPPINGCTRL_H

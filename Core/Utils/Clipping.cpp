@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "Scene/Mesh.h"
+#include "Scene/NormalMesh.h"
 #include "Scene/Voxel.h"
 #include "Scene/VoxelScalar.h"
 
@@ -57,6 +59,84 @@ void Clipping::execute(const VecPlanef& planes, bool only_visible)
     }
 
     execute(plane_info_list, target_list);
+}
+
+void Clipping::executeFix(const VecPlanef& planes, bool only_visible)
+{
+    if (!m_scene_graph) {
+        return;
+    }
+    std::vector<TargetNode> target_list;
+    collectTarget(m_scene_graph->rootNode(), m_scene_graph->rootNode()->matrix(), target_list, only_visible);
+
+    std::vector<PlaneInfo> plane_info_list;
+    for (auto& plane : planes) {
+        plane_info_list.emplace_back(plane);
+    }
+    for (auto& plane_info : plane_info_list) {
+        plane_info.setPlaneInfo();
+    }
+
+    execute(plane_info_list, target_list);
+
+    /// 編集状態でFixする
+    /// 並列化する
+    std::for_each(std::execution::par, target_list.begin(), target_list.end(), [&](TargetNode& target) {
+        auto& node   = target.m_node;
+        auto  object = node->object();
+        if (!object) {
+            return;
+        }
+
+        auto renderable = node->renderable();
+        if (!renderable) {
+            return;
+        }
+
+        switch (renderable->type()) {
+            case RenderableType::RenderEditableMesh: {
+                RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
+                if (mesh->isEnableEditDisplayData()) {
+                    const auto& vertex_list = mesh->displayEditVertices();
+                    const auto& index_list  = mesh->displayEditIndices();
+                    if (vertex_list.empty() || index_list.empty()) {
+                        auto mesh_obj = Mesh::createObject();
+                        node->setObject(mesh_obj.ptr());    /// 空メッシュ
+                    }
+                    else {
+                        int draw_priority = mesh->drawPriority();    /// 参照なくなるので保持
+
+                        auto        mesh_obj    = Mesh::createObject();
+                        RenderMesh* render_mesh = (RenderMesh*)mesh_obj->renderableObject();
+                        render_mesh->setFromEditable(*mesh);
+                        node->setObject(mesh_obj.ptr());
+                        node->setDrawPriority(draw_priority);
+                    }
+                }
+            } break;
+
+            case RenderableType::RenderEditableNormalMesh: {
+                RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
+                if (mesh->isEnableEditDisplayData()) {
+                    const auto& vertex_list = mesh->displayEditVertices();
+                    const auto& index_list  = mesh->displayEditIndices();
+                    if (vertex_list.empty() || index_list.empty()) {
+                        auto mesh_obj = NormalMesh::createObject();
+                        node->setObject(mesh_obj.ptr());    /// 空メッシュ
+                    }
+                    else {
+                        int draw_priority = mesh->drawPriority();
+
+                        auto              mesh_obj    = NormalMesh::createObject();
+                        RenderNormalMesh* render_mesh = (RenderNormalMesh*)mesh_obj->renderableObject();
+                        render_mesh->setFromEditable(*mesh);
+                        node->setObject(mesh_obj.ptr());
+                        node->setDrawPriority(draw_priority);
+                    }
+                }
+            } break;
+        }
+    });
 }
 
 void Clipping::execute(const std::vector<PlaneInfo>& plane_info_list, std::vector<TargetNode>& target_list)

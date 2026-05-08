@@ -4,6 +4,10 @@
 
 CORE_NAMESPACE_BEGIN
 
+RenderableObject::RenderableObject() : Renderable() {}
+
+RenderableObject::RenderableObject(const RenderableObject& other) : Renderable(other) {}
+
 RenderableNode::RenderableNode(const RenderableNode& other) : Renderable(other)
 {
     setRenderableObject(other.renderableObject());

@@ -7,7 +7,10 @@ DEFINE_META_OBJECT(VoxelScalar)
 
 VoxelScalar::VoxelScalar() : Voxel() {}
 
-VoxelScalar::VoxelScalar(const VoxelScalar& other) {}
+VoxelScalar::VoxelScalar(const VoxelScalar& other) : Voxel(other)
+{
+    /// 暫定 : 未実装
+}
 
 VoxelScalar::~VoxelScalar()
 {

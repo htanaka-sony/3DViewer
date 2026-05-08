@@ -1222,10 +1222,10 @@ float GLSceneRender::drawPriorityOffsetScale() const
     // 基準スケール係数は 1e-5 で、初期 ortho_size=10 のとき従来の 1e-4 と一致する
     if (m_scene_view->isPerspective()) {
         const float camera_dist = (m_scene_view->cameraEye() - m_scene_view->cameraTarget()).length();
-        return camera_dist * 1.0e-5f;
+        return camera_dist * 1.0e-4f;
     }
     else {
-        return m_scene_view->projOrthoSize() * 1.0e-5f;
+        return m_scene_view->projOrthoSize() * 1.0e-4f;
     }
 }
 
