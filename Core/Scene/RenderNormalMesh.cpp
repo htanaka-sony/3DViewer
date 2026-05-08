@@ -734,22 +734,17 @@ namespace {
 // axis: 0=X (断面YZ, 押し出しX方向), 1=Y (断面XZ, 押し出しY方向), 2=Z (断面XY, 押し出しZ方向)
 static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsigned int>& m_indices,
                               std::vector<unsigned int>& m_segments_indices, bool m_create_section_line,
-                              const std::vector<float>& c1, const std::vector<float>& c2, float height, int axis)
+                              const VecPoint2f& vertices, float height, int axis)
 {
     m_vertices.clear();
     m_indices.clear();
     m_segments_indices.clear();
 
-    const size_t n0 = std::min(c1.size(), c2.size());
-    if (n0 < 3 || height <= 0.0f) {
+    if (vertices.size() < 3 || height <= 0.0f) {
         return;
     }
 
-    std::vector<Point2f> poly;
-    poly.reserve(n0);
-    for (size_t i = 0; i < n0; i++) {
-        poly.emplace_back(c1[i], c2[i]);
-    }
+    std::vector<Point2f> poly(vertices.begin(), vertices.end());
     if (poly.size() >= 2) {
         const Point2f& a = poly.front();
         const Point2f& b = poly.back();
@@ -900,28 +895,25 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
 
 }    // namespace
 
-void RenderNormalMesh::createPolygonPrismX(const std::vector<float>& vertices_y, const std::vector<float>& vertices_z,
-                                           float height)
+void RenderNormalMesh::createPolygonPrismX(const VecPoint2f& vertices, float height)
 {
-    buildPolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, vertices_y, vertices_z, height,
+    buildPolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, vertices, height,
                       0);
     markRenderDirty();
     markBoxDirty();
 }
 
-void RenderNormalMesh::createPolygonPrismY(const std::vector<float>& vertices_x, const std::vector<float>& vertices_z,
-                                           float height)
+void RenderNormalMesh::createPolygonPrismY(const VecPoint2f& vertices, float height)
 {
-    buildPolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, vertices_x, vertices_z, height,
+    buildPolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, vertices, height,
                       1);
     markRenderDirty();
     markBoxDirty();
 }
 
-void RenderNormalMesh::createPolygonPrismZ(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y,
-                                           float height)
+void RenderNormalMesh::createPolygonPrismZ(const VecPoint2f& vertices, float height)
 {
-    buildPolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, vertices_x, vertices_y, height,
+    buildPolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, vertices, height,
                       2);
     markRenderDirty();
     markBoxDirty();
