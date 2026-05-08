@@ -851,12 +851,6 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
                                       int taper_state, float taper_dist,
                                       float tol)
 {
-    (void)round_state;
-    (void)radius;
-    (void)ratio_x;
-    (void)ratio_y;
-    (void)tol;
-
     m_vertices.clear();
     m_indices.clear();
     m_segments_indices.clear();
@@ -867,12 +861,14 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
         return;
     }
 
+    /// ---- opening bounds ----
     const float eps = 1.0e-6f;
     float       ix0 = std::clamp(ap_x_offset, 0.0f, outer_xlen - eps);
     float       iy0 = std::clamp(ap_y_offset, 0.0f, outer_ylen - eps);
     float       ix1 = std::clamp(ap_x_offset + ap_xlen, ix0 + eps, outer_xlen);
     float       iy1 = std::clamp(ap_y_offset + ap_ylen, iy0 + eps, outer_ylen);
 
+    /// taper: opening at z=z_len may be narrower/wider
     float ixt0 = ix0, iyt0 = iy0, ixt1 = ix1, iyt1 = iy1;
     if (taper_state != 0 && std::fabs(taper_dist) > 0.0f) {
         ixt0 += taper_dist;
@@ -885,8 +881,9 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
         iyt1 = std::clamp(iyt1, iyt0 + eps, outer_ylen);
     }
 
+    /// ---- vertex helpers ----
     auto addQuadFlatAuto = [&](const Point3f& p0, const Point3f& p1, const Point3f& p2, const Point3f& p3) {
-        const Point3f     n    = ((p1 - p0) ^ (p2 - p0)).normalized();
+        const Point3f      n    = ((p1 - p0) ^ (p2 - p0)).normalized();
         const unsigned int base = (unsigned int)m_vertices.size();
         m_vertices.emplace_back(p0, n);
         m_vertices.emplace_back(p1, n);
@@ -909,67 +906,168 @@ void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float 
         m_indices.emplace_back(base + 2);
     };
 
+    /// ---- outer walls (always sharp rectangles) ----
     std::array<Point3f, 4> ob{
         Point3f{0.0f, 0.0f, 0.0f}, Point3f{outer_xlen, 0.0f, 0.0f}, Point3f{outer_xlen, outer_ylen, 0.0f},
         Point3f{0.0f, outer_ylen, 0.0f}};
     std::array<Point3f, 4> ot{
         Point3f{0.0f, 0.0f, z_len}, Point3f{outer_xlen, 0.0f, z_len}, Point3f{outer_xlen, outer_ylen, z_len},
         Point3f{0.0f, outer_ylen, z_len}};
-    std::array<Point3f, 4> ib{
-        Point3f{ix0, iy0, 0.0f}, Point3f{ix0, iy1, 0.0f}, Point3f{ix1, iy1, 0.0f}, Point3f{ix1, iy0, 0.0f}};
-    std::array<Point3f, 4> it{
-        Point3f{ixt0, iyt0, z_len}, Point3f{ixt0, iyt1, z_len}, Point3f{ixt1, iyt1, z_len}, Point3f{ixt1, iyt0, z_len}};
-
     for (int i = 0; i < 4; i++) {
         const int j = (i + 1) % 4;
         addQuadFlatAuto(ob[i], ob[j], ot[j], ot[i]);
-        addQuadFlatAuto(ib[i], ib[j], it[j], it[i]);
+    }
+    /// outer walls: 4 quads × 4 vertices = 16 vertices starting at index 0.
+
+    /// ---- rounding parameters ----
+    /// EyerisProject convention (same as createBoxRound):
+    ///   ratioMax = max(ratio_x, ratio_y)
+    ///   rx = radius * ratio_x / ratioMax   ry = radius * ratio_y / ratioMax
+    ///   clamp to half the opening dimensions at each face independently.
+    float    rx_b = 0.0f, ry_b = 0.0f, rx_t = 0.0f, ry_t = 0.0f;
+    int      segs     = 1;
+    const bool do_round = (round_state != 0 && radius > 0.0f && ratio_x > 0.0f && ratio_y > 0.0f);
+    if (do_round) {
+        const float ratioMax = std::max(ratio_x, ratio_y);
+        rx_b                 = radius * ratio_x / ratioMax;
+        ry_b                 = radius * ratio_y / ratioMax;
+        rx_b                 = std::min(rx_b, (ix1 - ix0) * 0.5f);
+        ry_b                 = std::min(ry_b, (iy1 - iy0) * 0.5f);
+        rx_t                 = std::min(rx_b, (ixt1 - ixt0) * 0.5f);
+        ry_t                 = std::min(ry_b, (iyt1 - iyt0) * 0.5f);
+        /// Arc segment count from tolerance (same formula as createBoxRound):
+        ///   chord error = r*(1 - cos(π/N)) ≤ tol  →  N ≥ π / sqrt(2*tol/r)
+        const float r_ref = std::max(rx_b, ry_b);
+        if (tol > 0.0f && r_ref > 0.0f) {
+            segs = std::max(segs, (int)std::ceil((float)M_PI / std::sqrt(2.0f * tol / r_ref)));
+        }
     }
 
     using ECPolygon  = std::vector<std::array<float, 2>>;
     using ECPolygons = std::vector<ECPolygon>;
+
+    /// Build a CCW rounded-rectangle 2D contour.
+    /// Generates 4*(segs+1) points: 4 arc corners (BR→TR→TL→BL) each with segs+1 arc samples.
+    /// Straight sections between arcs are the segments connecting adjacent arc endpoints.
+    /// When rx==ry==0 and segs==1, degenerates to the 4-point sharp rectangle.
+    auto makeCCWContour = [&](float x0, float y0, float x1, float y1, float rx, float ry) -> ECPolygon {
+        ECPolygon   pts;
+        const float step = (float)M_PI_2 / segs;
+        struct ArcInfo {
+            float cx, cy, a0;
+        };
+        const ArcInfo arcs[4] = {
+            {x1 - rx, y0 + ry, -(float)M_PI_2},    /// BR: −90° → 0°
+            {x1 - rx, y1 - ry, 0.0f           },   /// TR:   0° → 90°
+            {x0 + rx, y1 - ry,  (float)M_PI_2 },   /// TL:  90° → 180°
+            {x0 + rx, y0 + ry,  (float)M_PI   },    /// BL: 180° → 270°
+        };
+        for (const auto& a : arcs) {
+            for (int k = 0; k <= segs; k++) {
+                const float angle = a.a0 + k * step;
+                pts.push_back({a.cx + rx * std::cos(angle), a.cy + ry * std::sin(angle)});
+            }
+        }
+        return pts;    /// 4*(segs+1) points
+    };
+
+    /// Build the inner-opening contour.
+    /// CW winding (= reversed CCW) is needed so that:
+    ///   - addQuadFlatAuto(bot[i], bot[j], top[j], top[i]) gives inward-facing normals.
+    ///   - earcut treats it as a CW hole polygon (earcut: outer=CCW, holes=CW).
+    auto makeInnerCW = [&](float x0, float y0, float x1, float y1, float rx, float ry) -> ECPolygon {
+        auto ccw = makeCCWContour(x0, y0, x1, y1, rx, ry);
+        return ECPolygon(ccw.rbegin(), ccw.rend());
+    };
+
+    /// When do_round is false, use the same 4-point sharp rectangle (CW) to avoid
+    /// degenerate quads from zero-radius arc collapse.
+    ECPolygon inner_bot_cw, inner_top_cw;
+    if (do_round) {
+        inner_bot_cw = makeInnerCW(ix0, iy0, ix1, iy1, rx_b, ry_b);
+        inner_top_cw = makeInnerCW(ixt0, iyt0, ixt1, iyt1, rx_t, ry_t);
+    }
+    else {
+        inner_bot_cw = {{ix0, iy0}, {ix0, iy1}, {ix1, iy1}, {ix1, iy0}};
+        inner_top_cw = {{ixt0, iyt0}, {ixt0, iyt1}, {ixt1, iyt1}, {ixt1, iyt0}};
+    }
+    const size_t nInner = inner_bot_cw.size();    /// 4 (sharp) or 4*(segs+1) (round)
+
+    /// ---- inner walls ----
+    /// Each step around the CW contour (bot[i]→bot[j], top[j]→top[i]) forms one quad
+    /// with inward-facing auto-computed normal.
+    const size_t inner_wall_vtx_start = m_vertices.size();    /// = 16
+    for (size_t i = 0; i < nInner; i++) {
+        const size_t j = (i + 1) % nInner;
+        addQuadFlatAuto({inner_bot_cw[i][0], inner_bot_cw[i][1], 0.0f},
+                        {inner_bot_cw[j][0], inner_bot_cw[j][1], 0.0f},
+                        {inner_top_cw[j][0], inner_top_cw[j][1], z_len},
+                        {inner_top_cw[i][0], inner_top_cw[i][1], z_len});
+    }
+
+    /// ---- cap faces (earcut: outer CCW, hole CW) ----
     ECPolygons bottom_polys(2), top_polys(2);
     bottom_polys[0] = {{0.0f, 0.0f}, {outer_xlen, 0.0f}, {outer_xlen, outer_ylen}, {0.0f, outer_ylen}};
-    bottom_polys[1] = {{ix0, iy0}, {ix0, iy1}, {ix1, iy1}, {ix1, iy0}};
+    bottom_polys[1] = inner_bot_cw;
     top_polys[0]    = {{0.0f, 0.0f}, {outer_xlen, 0.0f}, {outer_xlen, outer_ylen}, {0.0f, outer_ylen}};
-    top_polys[1]    = {{ixt0, iyt0}, {ixt0, iyt1}, {ixt1, iyt1}, {ixt1, iyt0}};
+    top_polys[1]    = inner_top_cw;
 
-    std::vector<Point3f> bpoints{
-        {0.0f, 0.0f, 0.0f}, {outer_xlen, 0.0f, 0.0f}, {outer_xlen, outer_ylen, 0.0f}, {0.0f, outer_ylen, 0.0f},
-        {ix0, iy0, 0.0f}, {ix0, iy1, 0.0f}, {ix1, iy1, 0.0f}, {ix1, iy0, 0.0f}};
-    std::vector<Point3f> tpoints{
-        {0.0f, 0.0f, z_len}, {outer_xlen, 0.0f, z_len}, {outer_xlen, outer_ylen, z_len}, {0.0f, outer_ylen, z_len},
-        {ixt0, iyt0, z_len}, {ixt0, iyt1, z_len}, {ixt1, iyt1, z_len}, {ixt1, iyt0, z_len}};
+    /// earcut indices map into the flattened ring list: outer 4 pts first, then hole nInner pts.
+    std::vector<Point3f> bpoints, tpoints;
+    bpoints.reserve(4 + nInner);
+    tpoints.reserve(4 + nInner);
+    bpoints.insert(bpoints.end(),
+                   {{0.0f, 0.0f, 0.0f},
+                    {outer_xlen, 0.0f, 0.0f},
+                    {outer_xlen, outer_ylen, 0.0f},
+                    {0.0f, outer_ylen, 0.0f}});
+    tpoints.insert(tpoints.end(),
+                   {{0.0f, 0.0f, z_len},
+                    {outer_xlen, 0.0f, z_len},
+                    {outer_xlen, outer_ylen, z_len},
+                    {0.0f, outer_ylen, z_len}});
+    for (const auto& p : inner_bot_cw) bpoints.push_back({p[0], p[1], 0.0f});
+    for (const auto& p : inner_top_cw) tpoints.push_back({p[0], p[1], z_len});
 
-    const std::vector<unsigned int> ear_bottom = mapbox::earcut<unsigned int>(bottom_polys);
+    const auto ear_bottom = mapbox::earcut<unsigned int>(bottom_polys);
     for (size_t k = 0; k + 2 < ear_bottom.size(); k += 3) {
-        const unsigned int i0 = ear_bottom[k + 0], i1 = ear_bottom[k + 1], i2 = ear_bottom[k + 2];
+        const unsigned int i0 = ear_bottom[k], i1 = ear_bottom[k + 1], i2 = ear_bottom[k + 2];
         addTriFlat(bpoints[i2], bpoints[i1], bpoints[i0], Point3f{0.0f, 0.0f, -1.0f});
     }
-    const std::vector<unsigned int> ear_top = mapbox::earcut<unsigned int>(top_polys);
+    const auto ear_top = mapbox::earcut<unsigned int>(top_polys);
     for (size_t k = 0; k + 2 < ear_top.size(); k += 3) {
-        const unsigned int i0 = ear_top[k + 0], i1 = ear_top[k + 1], i2 = ear_top[k + 2];
+        const unsigned int i0 = ear_top[k], i1 = ear_top[k + 1], i2 = ear_top[k + 2];
         addTriFlat(tpoints[i0], tpoints[i1], tpoints[i2], Point3f{0.0f, 0.0f, 1.0f});
     }
 
+    /// ---- wireframe ----
     if (m_create_section_line) {
-        const size_t side_base = 0;
+        /// outer walls: 4 quads at vertex base 0
         for (int i = 0; i < 4; i++) {
-            const size_t obase = side_base + i * 4;
-            const size_t ibase = side_base + (4 + i) * 4;
+            const size_t obase = (size_t)i * 4;
             m_segments_indices.emplace_back((unsigned int)(obase + 0));
             m_segments_indices.emplace_back((unsigned int)(obase + 1));
             m_segments_indices.emplace_back((unsigned int)(obase + 3));
             m_segments_indices.emplace_back((unsigned int)(obase + 2));
             m_segments_indices.emplace_back((unsigned int)(obase + 0));
             m_segments_indices.emplace_back((unsigned int)(obase + 3));
-
-            m_segments_indices.emplace_back((unsigned int)(ibase + 0));
-            m_segments_indices.emplace_back((unsigned int)(ibase + 1));
-            m_segments_indices.emplace_back((unsigned int)(ibase + 3));
-            m_segments_indices.emplace_back((unsigned int)(ibase + 2));
-            m_segments_indices.emplace_back((unsigned int)(ibase + 0));
-            m_segments_indices.emplace_back((unsigned int)(ibase + 3));
+        }
+        /// inner walls: nInner quads starting at inner_wall_vtx_start.
+        /// Trace bottom contour, top contour, and one vertical per corner transition.
+        for (size_t i = 0; i < nInner; i++) {
+            const size_t ibase = inner_wall_vtx_start + i * 4;
+            m_segments_indices.emplace_back((unsigned int)(ibase + 0));    /// bot[i]
+            m_segments_indices.emplace_back((unsigned int)(ibase + 1));    /// bot[j]
+            m_segments_indices.emplace_back((unsigned int)(ibase + 3));    /// top[i]
+            m_segments_indices.emplace_back((unsigned int)(ibase + 2));    /// top[j]
+        }
+        /// vertical edges at the 4 arc→straight transitions.
+        /// corner_step = nInner/4 (= 1 for sharp, = segs+1 for round).
+        const size_t corner_step = nInner / 4;
+        for (int corner = 0; corner < 4; corner++) {
+            const size_t ibase = inner_wall_vtx_start + (size_t)corner * corner_step * 4;
+            m_segments_indices.emplace_back((unsigned int)(ibase + 0));    /// bot
+            m_segments_indices.emplace_back((unsigned int)(ibase + 3));    /// top
         }
     }
 
