@@ -739,6 +739,7 @@ namespace {
 constexpr float kPolygonEps             = 1.0e-6f;
 constexpr int   kPairGridThreshold      = 96;
 constexpr int   kPairGridCellSpanSafety = 64;
+constexpr int   kCollinearFilterMaxIterations = 8;
 
 struct Segment2D {
     Point2f            p0;
@@ -805,7 +806,7 @@ static std::vector<Point2f> normalizeStrokeLoop(const VecPoint2f& vertices, floa
 
     bool changed = true;
     int  guard   = 0;
-    while (changed && poly.size() >= 3 && guard < 8) {
+    while (changed && poly.size() >= 3 && guard < kCollinearFilterMaxIterations) {
         changed = false;
         guard++;
         std::vector<Point2f> filtered;
@@ -1169,7 +1170,7 @@ static bool buildFacesFromPlanarGraph(const std::vector<Point2f>& vtx2d, const s
         std::vector<int> cycle_vertices;
         int              e     = (int)start;
         int              guard = 0;
-        while (!visited[e] && guard <= (int)out_dir_edges.size() + 1) {
+        while (!visited[e] && guard < (int)out_dir_edges.size()) {
             visited[e] = 1;
             cycle_edges.push_back(e);
             cycle_vertices.push_back(out_dir_edges[e].from);
@@ -1405,7 +1406,7 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
         return;
     }
 
-    // Fast path: 単純ループは従来の earcut 直行
+    // Fast path: 単純ループは従来の earcut を直接使用
     if (!hasSelfIntersection(poly, kPolygonEps)) {
         buildSimplePolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, poly, height, axis);
         return;
