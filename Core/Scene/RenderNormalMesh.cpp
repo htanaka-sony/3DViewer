@@ -733,8 +733,8 @@ namespace {
 
 // axis: 0=X (断面YZ, 押し出しX方向), 1=Y (断面XZ, 押し出しY方向), 2=Z (断面XY, 押し出しZ方向)
 static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsigned int>& m_indices,
-                               std::vector<unsigned int>& m_segments_indices, bool m_create_section_line,
-                               const std::vector<float>& c1, const std::vector<float>& c2, float height, int axis)
+                              std::vector<unsigned int>& m_segments_indices, bool m_create_section_line,
+                              const std::vector<float>& c1, const std::vector<float>& c2, float height, int axis)
 {
     m_vertices.clear();
     m_indices.clear();
@@ -778,21 +778,27 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
     // 2D断面座標 (a, b) → 3D底面点 / 頂面点
     auto makeBase = [&](float a, float b) -> Point3f {
         switch (axis) {
-            case 0:  return {0.0f, a, b};       // X軸: 底面 x=0
-            case 1:  return {a, 0.0f, b};       // Y軸: 底面 y=0
-            default: return {a, b, 0.0f};       // Z軸: 底面 z=0
+            case 0:
+                return {0.0f, a, b};    // X軸: 底面 x=0
+            case 1:
+                return {a, 0.0f, b};    // Y軸: 底面 y=0
+            default:
+                return {a, b, 0.0f};    // Z軸: 底面 z=0
         }
     };
     auto makeTop = [&](float a, float b) -> Point3f {
         switch (axis) {
-            case 0:  return {height, a, b};     // X軸: 頂面 x=height
-            case 1:  return {a, height, b};     // Y軸: 頂面 y=height
-            default: return {a, b, height};     // Z軸: 頂面 z=height
+            case 0:
+                return {height, a, b};    // X軸: 頂面 x=height
+            case 1:
+                return {a, height, b};    // Y軸: 頂面 y=height
+            default:
+                return {a, b, height};    // Z軸: 頂面 z=height
         }
     };
 
-    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1,
-                        const Point3f& p2, const Point3f& n2, const Point3f& p3, const Point3f& n3) {
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
+                        const Point3f& n2, const Point3f& p3, const Point3f& n3) {
         const unsigned int base = (unsigned int)m_vertices.size();
         m_vertices.emplace_back(p0, n0);
         m_vertices.emplace_back(p1, n1);
@@ -850,22 +856,31 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
     const std::vector<unsigned int> ear = mapbox::earcut<unsigned int>(polygons);
 
     Point3f norm_base, norm_top;
-    if (axis == 0)      { norm_base = {-1.0f, 0.0f, 0.0f}; norm_top = { 1.0f, 0.0f, 0.0f}; }
-    else if (axis == 1) { norm_base = { 0.0f,-1.0f, 0.0f}; norm_top = { 0.0f, 1.0f, 0.0f}; }
-    else                { norm_base = { 0.0f, 0.0f,-1.0f}; norm_top = { 0.0f, 0.0f, 1.0f}; }
+    if (axis == 0) {
+        norm_base = {-1.0f, 0.0f, 0.0f};
+        norm_top  = {1.0f, 0.0f, 0.0f};
+    }
+    else if (axis == 1) {
+        norm_base = {0.0f, -1.0f, 0.0f};
+        norm_top  = {0.0f, 1.0f, 0.0f};
+    }
+    else {
+        norm_base = {0.0f, 0.0f, -1.0f};
+        norm_top  = {0.0f, 0.0f, 1.0f};
+    }
 
     for (size_t k = 0; k + 2 < ear.size(); k += 3) {
         const unsigned int i0 = ear[k + 0], i1 = ear[k + 1], i2 = ear[k + 2];
         if (axis == 1) {
             // Y軸: earcutのCCW三角形はXZ断面で法線-Y → 底面(y=0)は同順(外向き-Y), 頂面(y=h)は逆順(外向き+Y)
             addTriFlat(cap_base[i0], cap_base[i1], cap_base[i2], norm_base);
-            addTriFlat(cap_top[i2],  cap_top[i1],  cap_top[i0],  norm_top);
+            addTriFlat(cap_top[i2], cap_top[i1], cap_top[i0], norm_top);
         }
         else {
             // X軸: CCW in YZ → 法線+X; Z軸: CCW in XY → 法線+Z
             // 底面(x=0 or z=0): 逆順(外向き-X or -Z), 頂面: 同順(外向き+X or +Z)
             addTriFlat(cap_base[i2], cap_base[i1], cap_base[i0], norm_base);
-            addTriFlat(cap_top[i0],  cap_top[i1],  cap_top[i2],  norm_top);
+            addTriFlat(cap_top[i0], cap_top[i1], cap_top[i2], norm_top);
         }
     }
 
@@ -883,7 +898,7 @@ static void buildPolygonPrism(std::vector<Vertexf>& m_vertices, std::vector<unsi
     }
 }
 
-}  // namespace
+}    // namespace
 
 void RenderNormalMesh::createPolygonPrismX(const std::vector<float>& vertices_y, const std::vector<float>& vertices_z,
                                            float height)
@@ -906,122 +921,8 @@ void RenderNormalMesh::createPolygonPrismY(const std::vector<float>& vertices_x,
 void RenderNormalMesh::createPolygonPrismZ(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y,
                                            float height)
 {
-    createPolygonPrism(vertices_x, vertices_y, height);
-}
-
-void RenderNormalMesh::createPolygonPrism(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y,
-                                          float height)
-{
-    m_vertices.clear();
-    m_indices.clear();
-    m_segments_indices.clear();
-
-    const size_t n0 = std::min(vertices_x.size(), vertices_y.size());
-    if (n0 < 3 || height <= 0.0f) {
-        markRenderDirty();
-        markBoxDirty();
-        return;
-    }
-
-    std::vector<Point2f> poly;
-    poly.reserve(n0);
-    for (size_t i = 0; i < n0; i++) {
-        poly.emplace_back(vertices_x[i], vertices_y[i]);
-    }
-    if (poly.size() >= 2) {
-        const Point2f& a = poly.front();
-        const Point2f& b = poly.back();
-        if (std::fabs(a.x() - b.x()) < 1.0e-7f && std::fabs(a.y() - b.y()) < 1.0e-7f) {
-            poly.pop_back();
-        }
-    }
-    if (poly.size() < 3) {
-        markRenderDirty();
-        markBoxDirty();
-        return;
-    }
-
-    float signed_area = 0.0f;
-    for (size_t i = 0; i < poly.size(); i++) {
-        const size_t j = (i + 1) % poly.size();
-        signed_area += poly[i].x() * poly[j].y() - poly[j].x() * poly[i].y();
-    }
-    signed_area *= 0.5f;
-    if (std::fabs(signed_area) < 1.0e-7f) {
-        markRenderDirty();
-        markBoxDirty();
-        return;
-    }
-    if (signed_area < 0.0f) {
-        std::reverse(poly.begin(), poly.end());
-    }
-
-    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1, const Point3f& p2,
-                        const Point3f& n2, const Point3f& p3, const Point3f& n3) {
-        const unsigned int base = (unsigned int)m_vertices.size();
-        m_vertices.emplace_back(p0, n0);
-        m_vertices.emplace_back(p1, n1);
-        m_vertices.emplace_back(p2, n2);
-        m_vertices.emplace_back(p3, n3);
-        m_indices.emplace_back(base + 0);
-        m_indices.emplace_back(base + 1);
-        m_indices.emplace_back(base + 2);
-        m_indices.emplace_back(base + 2);
-        m_indices.emplace_back(base + 3);
-        m_indices.emplace_back(base + 0);
-    };
-    auto addTriFlat = [&](const Point3f& a, const Point3f& b, const Point3f& c, const Point3f& n) {
-        const unsigned int base = (unsigned int)m_vertices.size();
-        m_vertices.emplace_back(a, n);
-        m_vertices.emplace_back(b, n);
-        m_vertices.emplace_back(c, n);
-        m_indices.emplace_back(base + 0);
-        m_indices.emplace_back(base + 1);
-        m_indices.emplace_back(base + 2);
-    };
-
-    for (size_t i = 0; i < poly.size(); i++) {
-        const size_t  j = (i + 1) % poly.size();
-        const Point3f p0{poly[i].x(), poly[i].y(), 0.0f};
-        const Point3f p1{poly[j].x(), poly[j].y(), 0.0f};
-        const Point3f p2{poly[j].x(), poly[j].y(), height};
-        const Point3f p3{poly[i].x(), poly[i].y(), height};
-        const Point3f n = ((p1 - p0) ^ (p2 - p0)).normalized();
-        addQuadN(p0, n, p1, n, p2, n, p3, n);
-    }
-
-    using ECPolygon  = std::vector<std::array<float, 2>>;
-    using ECPolygons = std::vector<ECPolygon>;
-    ECPolygons polygons(1);
-    polygons[0].reserve(poly.size());
-    std::vector<Point3f> cap_bottom, cap_top;
-    cap_bottom.reserve(poly.size());
-    cap_top.reserve(poly.size());
-    for (const auto& p : poly) {
-        polygons[0].push_back({p.x(), p.y()});
-        cap_bottom.emplace_back(p.x(), p.y(), 0.0f);
-        cap_top.emplace_back(p.x(), p.y(), height);
-    }
-    const std::vector<unsigned int> ear = mapbox::earcut<unsigned int>(polygons);
-    for (size_t k = 0; k + 2 < ear.size(); k += 3) {
-        const unsigned int i0 = ear[k + 0], i1 = ear[k + 1], i2 = ear[k + 2];
-        addTriFlat(cap_bottom[i2], cap_bottom[i1], cap_bottom[i0], Point3f{0.0f, 0.0f, -1.0f});
-        addTriFlat(cap_top[i0], cap_top[i1], cap_top[i2], Point3f{0.0f, 0.0f, 1.0f});
-    }
-
-    if (m_create_section_line) {
-        const size_t side_vtx_base = 0;
-        for (size_t i = 0; i < poly.size(); i++) {
-            const size_t side_base = side_vtx_base + i * 4;
-            m_segments_indices.emplace_back((unsigned int)(side_base + 0));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 1));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 3));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 2));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 0));
-            m_segments_indices.emplace_back((unsigned int)(side_base + 3));
-        }
-    }
-
+    buildPolygonPrism(m_vertices, m_indices, m_segments_indices, m_create_section_line, vertices_x, vertices_y, height,
+                      2);
     markRenderDirty();
     markBoxDirty();
 }

@@ -35,13 +35,6 @@ void NormalMesh::createEllipticalCylinder(float radius_x, float radius_y, float 
     mesh->createEllipticalCylinder(radius_x, radius_y, height, taper_dist, tol);
 }
 
-void NormalMesh::createPolygonPrism(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y,
-                                    float height)
-{
-    RenderNormalMesh* mesh = (RenderNormalMesh*)m_renderable.ptr();
-    mesh->createPolygonPrism(vertices_x, vertices_y, height);
-}
-
 void NormalMesh::createPolygonPrismX(const std::vector<float>& vertices_y, const std::vector<float>& vertices_z,
                                      float height)
 {
@@ -63,20 +56,13 @@ void NormalMesh::createPolygonPrismZ(const std::vector<float>& vertices_x, const
     mesh->createPolygonPrismZ(vertices_x, vertices_y, height);
 }
 
-void NormalMesh::createAperture(float outer_xlen, float outer_ylen, float z_len,
-                                float ap_x_offset, float ap_y_offset,
-                                float ap_xlen, float ap_ylen,
-                                int round_state, float radius, float ratio_x, float ratio_y,
-                                int taper_state, float taper_dist,
-                                float tol)
+void NormalMesh::createAperture(float outer_xlen, float outer_ylen, float z_len, float ap_x_offset, float ap_y_offset,
+                                float ap_xlen, float ap_ylen, int round_state, float radius, float ratio_x,
+                                float ratio_y, int taper_state, float taper_dist, float tol)
 {
     RenderNormalMesh* mesh = (RenderNormalMesh*)m_renderable.ptr();
-    mesh->createAperture(outer_xlen, outer_ylen, z_len,
-                         ap_x_offset, ap_y_offset,
-                         ap_xlen, ap_ylen,
-                         round_state, radius, ratio_x, ratio_y,
-                         taper_state, taper_dist,
-                         tol);
+    mesh->createAperture(outer_xlen, outer_ylen, z_len, ap_x_offset, ap_y_offset, ap_xlen, ap_ylen, round_state, radius,
+                         ratio_x, ratio_y, taper_state, taper_dist, tol);
 }
 
 CORE_NAMESPACE_END
