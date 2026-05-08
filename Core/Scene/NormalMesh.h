@@ -2,6 +2,7 @@
 #define NORMALMESH_H
 
 #include "Scene/Shape.h"
+#include <vector>
 
 CORE_NAMESPACE_BEGIN
 
@@ -19,6 +20,13 @@ public:
     // height              : 柱の高さ (m)
     // taper_dist          : テーパー量 (m)、0 = テーパー無し、正=上部縮小、負=下部縮小
     void createEllipticalCylinder(float radius_x, float radius_y, float height, float taper_dist, float tol);
+    void createPolygonPrism(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y, float height);
+    void createAperture(float outer_xlen, float outer_ylen, float z_len,
+                        float ap_x_offset, float ap_y_offset,
+                        float ap_xlen, float ap_ylen,
+                        int round_state, float radius, float ratio_x, float ratio_y,
+                        int taper_state, float taper_dist,
+                        float tol);
 };
 
 CORE_NAMESPACE_END

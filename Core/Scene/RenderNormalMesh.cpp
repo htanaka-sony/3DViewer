@@ -1,7 +1,9 @@
 #include "RenderNormalMesh.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include "earcut.hpp"
 
 #undef min
 #undef max
@@ -718,6 +720,256 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
             const unsigned int base = (unsigned int)vj * 4;
             m_segments_indices.emplace_back(base + 0);    /// pBot[vj]
             m_segments_indices.emplace_back(base + 3);    /// pTop[vj]
+        }
+    }
+
+    markRenderDirty();
+    markBoxDirty();
+}
+
+void RenderNormalMesh::createPolygonPrism(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y,
+                                          float height)
+{
+    m_vertices.clear();
+    m_indices.clear();
+    m_segments_indices.clear();
+
+    const size_t n0 = std::min(vertices_x.size(), vertices_y.size());
+    if (n0 < 3 || height <= 0.0f) {
+        markRenderDirty();
+        markBoxDirty();
+        return;
+    }
+
+    std::vector<Point2f> poly;
+    poly.reserve(n0);
+    for (size_t i = 0; i < n0; i++) {
+        poly.emplace_back(vertices_x[i], vertices_y[i]);
+    }
+    if (poly.size() >= 2) {
+        const Point2f& a = poly.front();
+        const Point2f& b = poly.back();
+        if (std::fabs(a.x() - b.x()) < 1.0e-7f && std::fabs(a.y() - b.y()) < 1.0e-7f) {
+            poly.pop_back();
+        }
+    }
+    if (poly.size() < 3) {
+        markRenderDirty();
+        markBoxDirty();
+        return;
+    }
+
+    float signed_area = 0.0f;
+    for (size_t i = 0; i < poly.size(); i++) {
+        const size_t j = (i + 1) % poly.size();
+        signed_area += poly[i].x() * poly[j].y() - poly[j].x() * poly[i].y();
+    }
+    signed_area *= 0.5f;
+    if (std::fabs(signed_area) < 1.0e-7f) {
+        markRenderDirty();
+        markBoxDirty();
+        return;
+    }
+    if (signed_area < 0.0f) {
+        std::reverse(poly.begin(), poly.end());
+    }
+
+    auto addQuadN = [&](const Point3f& p0, const Point3f& n0, const Point3f& p1, const Point3f& n1,
+                        const Point3f& p2, const Point3f& n2, const Point3f& p3, const Point3f& n3) {
+        const unsigned int base = (unsigned int)m_vertices.size();
+        m_vertices.emplace_back(p0, n0);
+        m_vertices.emplace_back(p1, n1);
+        m_vertices.emplace_back(p2, n2);
+        m_vertices.emplace_back(p3, n3);
+        m_indices.emplace_back(base + 0);
+        m_indices.emplace_back(base + 1);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 3);
+        m_indices.emplace_back(base + 0);
+    };
+    auto addTriFlat = [&](const Point3f& a, const Point3f& b, const Point3f& c, const Point3f& n) {
+        const unsigned int base = (unsigned int)m_vertices.size();
+        m_vertices.emplace_back(a, n);
+        m_vertices.emplace_back(b, n);
+        m_vertices.emplace_back(c, n);
+        m_indices.emplace_back(base + 0);
+        m_indices.emplace_back(base + 1);
+        m_indices.emplace_back(base + 2);
+    };
+
+    for (size_t i = 0; i < poly.size(); i++) {
+        const size_t j = (i + 1) % poly.size();
+        const Point3f p0{poly[i].x(), poly[i].y(), 0.0f};
+        const Point3f p1{poly[j].x(), poly[j].y(), 0.0f};
+        const Point3f p2{poly[j].x(), poly[j].y(), height};
+        const Point3f p3{poly[i].x(), poly[i].y(), height};
+        const Point3f n = ((p1 - p0) ^ (p2 - p0)).normalized();
+        addQuadN(p0, n, p1, n, p2, n, p3, n);
+    }
+
+    using ECPolygon  = std::vector<std::array<float, 2>>;
+    using ECPolygons = std::vector<ECPolygon>;
+    ECPolygons polygons(1);
+    polygons[0].reserve(poly.size());
+    std::vector<Point3f> cap_bottom, cap_top;
+    cap_bottom.reserve(poly.size());
+    cap_top.reserve(poly.size());
+    for (const auto& p : poly) {
+        polygons[0].push_back({p.x(), p.y()});
+        cap_bottom.emplace_back(p.x(), p.y(), 0.0f);
+        cap_top.emplace_back(p.x(), p.y(), height);
+    }
+    const std::vector<unsigned int> ear = mapbox::earcut<unsigned int>(polygons);
+    for (size_t k = 0; k + 2 < ear.size(); k += 3) {
+        const unsigned int i0 = ear[k + 0], i1 = ear[k + 1], i2 = ear[k + 2];
+        addTriFlat(cap_bottom[i2], cap_bottom[i1], cap_bottom[i0], Point3f{0.0f, 0.0f, -1.0f});
+        addTriFlat(cap_top[i0], cap_top[i1], cap_top[i2], Point3f{0.0f, 0.0f, 1.0f});
+    }
+
+    if (m_create_section_line) {
+        const size_t side_vtx_base = 0;
+        for (size_t i = 0; i < poly.size(); i++) {
+            const size_t side_base = side_vtx_base + i * 4;
+            m_segments_indices.emplace_back((unsigned int)(side_base + 0));
+            m_segments_indices.emplace_back((unsigned int)(side_base + 1));
+            m_segments_indices.emplace_back((unsigned int)(side_base + 3));
+            m_segments_indices.emplace_back((unsigned int)(side_base + 2));
+            m_segments_indices.emplace_back((unsigned int)(side_base + 0));
+            m_segments_indices.emplace_back((unsigned int)(side_base + 3));
+        }
+    }
+
+    markRenderDirty();
+    markBoxDirty();
+}
+
+void RenderNormalMesh::createAperture(float outer_xlen, float outer_ylen, float z_len,
+                                      float ap_x_offset, float ap_y_offset,
+                                      float ap_xlen, float ap_ylen,
+                                      int round_state, float radius, float ratio_x, float ratio_y,
+                                      int taper_state, float taper_dist,
+                                      float tol)
+{
+    (void)round_state;
+    (void)radius;
+    (void)ratio_x;
+    (void)ratio_y;
+    (void)tol;
+
+    m_vertices.clear();
+    m_indices.clear();
+    m_segments_indices.clear();
+
+    if (outer_xlen <= 0.0f || outer_ylen <= 0.0f || z_len <= 0.0f || ap_xlen <= 0.0f || ap_ylen <= 0.0f) {
+        markRenderDirty();
+        markBoxDirty();
+        return;
+    }
+
+    const float eps = 1.0e-6f;
+    float       ix0 = std::clamp(ap_x_offset, 0.0f, outer_xlen - eps);
+    float       iy0 = std::clamp(ap_y_offset, 0.0f, outer_ylen - eps);
+    float       ix1 = std::clamp(ap_x_offset + ap_xlen, ix0 + eps, outer_xlen);
+    float       iy1 = std::clamp(ap_y_offset + ap_ylen, iy0 + eps, outer_ylen);
+
+    float ixt0 = ix0, iyt0 = iy0, ixt1 = ix1, iyt1 = iy1;
+    if (taper_state != 0 && std::fabs(taper_dist) > 0.0f) {
+        ixt0 += taper_dist;
+        iyt0 += taper_dist;
+        ixt1 -= taper_dist;
+        iyt1 -= taper_dist;
+        ixt0 = std::clamp(ixt0, 0.0f, outer_xlen - eps);
+        iyt0 = std::clamp(iyt0, 0.0f, outer_ylen - eps);
+        ixt1 = std::clamp(ixt1, ixt0 + eps, outer_xlen);
+        iyt1 = std::clamp(iyt1, iyt0 + eps, outer_ylen);
+    }
+
+    auto addQuadFlatAuto = [&](const Point3f& p0, const Point3f& p1, const Point3f& p2, const Point3f& p3) {
+        const Point3f     n    = ((p1 - p0) ^ (p2 - p0)).normalized();
+        const unsigned int base = (unsigned int)m_vertices.size();
+        m_vertices.emplace_back(p0, n);
+        m_vertices.emplace_back(p1, n);
+        m_vertices.emplace_back(p2, n);
+        m_vertices.emplace_back(p3, n);
+        m_indices.emplace_back(base + 0);
+        m_indices.emplace_back(base + 1);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 2);
+        m_indices.emplace_back(base + 3);
+        m_indices.emplace_back(base + 0);
+    };
+    auto addTriFlat = [&](const Point3f& a, const Point3f& b, const Point3f& c, const Point3f& n) {
+        const unsigned int base = (unsigned int)m_vertices.size();
+        m_vertices.emplace_back(a, n);
+        m_vertices.emplace_back(b, n);
+        m_vertices.emplace_back(c, n);
+        m_indices.emplace_back(base + 0);
+        m_indices.emplace_back(base + 1);
+        m_indices.emplace_back(base + 2);
+    };
+
+    std::array<Point3f, 4> ob{
+        Point3f{0.0f, 0.0f, 0.0f}, Point3f{outer_xlen, 0.0f, 0.0f}, Point3f{outer_xlen, outer_ylen, 0.0f},
+        Point3f{0.0f, outer_ylen, 0.0f}};
+    std::array<Point3f, 4> ot{
+        Point3f{0.0f, 0.0f, z_len}, Point3f{outer_xlen, 0.0f, z_len}, Point3f{outer_xlen, outer_ylen, z_len},
+        Point3f{0.0f, outer_ylen, z_len}};
+    std::array<Point3f, 4> ib{
+        Point3f{ix0, iy0, 0.0f}, Point3f{ix0, iy1, 0.0f}, Point3f{ix1, iy1, 0.0f}, Point3f{ix1, iy0, 0.0f}};
+    std::array<Point3f, 4> it{
+        Point3f{ixt0, iyt0, z_len}, Point3f{ixt0, iyt1, z_len}, Point3f{ixt1, iyt1, z_len}, Point3f{ixt1, iyt0, z_len}};
+
+    for (int i = 0; i < 4; i++) {
+        const int j = (i + 1) % 4;
+        addQuadFlatAuto(ob[i], ob[j], ot[j], ot[i]);
+        addQuadFlatAuto(ib[i], ib[j], it[j], it[i]);
+    }
+
+    using ECPolygon  = std::vector<std::array<float, 2>>;
+    using ECPolygons = std::vector<ECPolygon>;
+    ECPolygons bottom_polys(2), top_polys(2);
+    bottom_polys[0] = {{0.0f, 0.0f}, {outer_xlen, 0.0f}, {outer_xlen, outer_ylen}, {0.0f, outer_ylen}};
+    bottom_polys[1] = {{ix0, iy0}, {ix0, iy1}, {ix1, iy1}, {ix1, iy0}};
+    top_polys[0]    = {{0.0f, 0.0f}, {outer_xlen, 0.0f}, {outer_xlen, outer_ylen}, {0.0f, outer_ylen}};
+    top_polys[1]    = {{ixt0, iyt0}, {ixt0, iyt1}, {ixt1, iyt1}, {ixt1, iyt0}};
+
+    std::vector<Point3f> bpoints{
+        {0.0f, 0.0f, 0.0f}, {outer_xlen, 0.0f, 0.0f}, {outer_xlen, outer_ylen, 0.0f}, {0.0f, outer_ylen, 0.0f},
+        {ix0, iy0, 0.0f}, {ix0, iy1, 0.0f}, {ix1, iy1, 0.0f}, {ix1, iy0, 0.0f}};
+    std::vector<Point3f> tpoints{
+        {0.0f, 0.0f, z_len}, {outer_xlen, 0.0f, z_len}, {outer_xlen, outer_ylen, z_len}, {0.0f, outer_ylen, z_len},
+        {ixt0, iyt0, z_len}, {ixt0, iyt1, z_len}, {ixt1, iyt1, z_len}, {ixt1, iyt0, z_len}};
+
+    const std::vector<unsigned int> ear_bottom = mapbox::earcut<unsigned int>(bottom_polys);
+    for (size_t k = 0; k + 2 < ear_bottom.size(); k += 3) {
+        const unsigned int i0 = ear_bottom[k + 0], i1 = ear_bottom[k + 1], i2 = ear_bottom[k + 2];
+        addTriFlat(bpoints[i2], bpoints[i1], bpoints[i0], Point3f{0.0f, 0.0f, -1.0f});
+    }
+    const std::vector<unsigned int> ear_top = mapbox::earcut<unsigned int>(top_polys);
+    for (size_t k = 0; k + 2 < ear_top.size(); k += 3) {
+        const unsigned int i0 = ear_top[k + 0], i1 = ear_top[k + 1], i2 = ear_top[k + 2];
+        addTriFlat(tpoints[i0], tpoints[i1], tpoints[i2], Point3f{0.0f, 0.0f, 1.0f});
+    }
+
+    if (m_create_section_line) {
+        const size_t side_base = 0;
+        for (int i = 0; i < 4; i++) {
+            const size_t obase = side_base + i * 4;
+            const size_t ibase = side_base + (4 + i) * 4;
+            m_segments_indices.emplace_back((unsigned int)(obase + 0));
+            m_segments_indices.emplace_back((unsigned int)(obase + 1));
+            m_segments_indices.emplace_back((unsigned int)(obase + 3));
+            m_segments_indices.emplace_back((unsigned int)(obase + 2));
+            m_segments_indices.emplace_back((unsigned int)(obase + 0));
+            m_segments_indices.emplace_back((unsigned int)(obase + 3));
+
+            m_segments_indices.emplace_back((unsigned int)(ibase + 0));
+            m_segments_indices.emplace_back((unsigned int)(ibase + 1));
+            m_segments_indices.emplace_back((unsigned int)(ibase + 3));
+            m_segments_indices.emplace_back((unsigned int)(ibase + 2));
+            m_segments_indices.emplace_back((unsigned int)(ibase + 0));
+            m_segments_indices.emplace_back((unsigned int)(ibase + 3));
         }
     }
 
