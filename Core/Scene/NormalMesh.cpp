@@ -42,6 +42,27 @@ void NormalMesh::createPolygonPrism(const std::vector<float>& vertices_x, const 
     mesh->createPolygonPrism(vertices_x, vertices_y, height);
 }
 
+void NormalMesh::createPolygonPrismX(const std::vector<float>& vertices_y, const std::vector<float>& vertices_z,
+                                     float height)
+{
+    RenderNormalMesh* mesh = (RenderNormalMesh*)m_renderable.ptr();
+    mesh->createPolygonPrismX(vertices_y, vertices_z, height);
+}
+
+void NormalMesh::createPolygonPrismY(const std::vector<float>& vertices_x, const std::vector<float>& vertices_z,
+                                     float height)
+{
+    RenderNormalMesh* mesh = (RenderNormalMesh*)m_renderable.ptr();
+    mesh->createPolygonPrismY(vertices_x, vertices_z, height);
+}
+
+void NormalMesh::createPolygonPrismZ(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y,
+                                     float height)
+{
+    RenderNormalMesh* mesh = (RenderNormalMesh*)m_renderable.ptr();
+    mesh->createPolygonPrismZ(vertices_x, vertices_y, height);
+}
+
 void NormalMesh::createAperture(float outer_xlen, float outer_ylen, float z_len,
                                 float ap_x_offset, float ap_y_offset,
                                 float ap_xlen, float ap_ylen,

@@ -21,6 +21,12 @@ public:
     // taper_dist          : テーパー量 (m)、0 = テーパー無し、正=上部縮小、負=下部縮小
     void createEllipticalCylinder(float radius_x, float radius_y, float height, float taper_dist, float tol);
     void createPolygonPrism(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y, float height);
+    // vertices_y / vertices_z : 断面の頂点座標 (YZ平面), height : X方向の高さ (m)
+    void createPolygonPrismX(const std::vector<float>& vertices_y, const std::vector<float>& vertices_z, float height);
+    // vertices_x / vertices_z : 断面の頂点座標 (XZ平面), height : Y方向の高さ (m)
+    void createPolygonPrismY(const std::vector<float>& vertices_x, const std::vector<float>& vertices_z, float height);
+    // vertices_x / vertices_y : 断面の頂点座標 (XY平面), height : Z方向の高さ (m)
+    void createPolygonPrismZ(const std::vector<float>& vertices_x, const std::vector<float>& vertices_y, float height);
     void createAperture(float outer_xlen, float outer_ylen, float z_len,
                         float ap_x_offset, float ap_y_offset,
                         float ap_xlen, float ap_ylen,
