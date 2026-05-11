@@ -160,6 +160,8 @@ public:
     void           setTransparent(float transparent);
     float          transparent() const;
 
+    void copyRenderableState(const RenderableNode* renderable);
+
     void  setProjectionNode(Node* node);
     Node* projectionNode();
 

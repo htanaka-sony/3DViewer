@@ -697,6 +697,16 @@ float Node::transparent() const
     return 1.0f;
 }
 
+void Node::copyRenderableState(const RenderableNode* renderable)
+{
+    if (m_renderable != nullptr && renderable != nullptr) {
+        m_renderable->setColor(renderable->color());
+        m_renderable->setDrawPriority(renderable->drawPriority());
+        m_renderable->setDrawShading(renderable->isDrawShading());
+        m_renderable->setDrawWireframe(renderable->isDrawWireframe());
+    }
+}
+
 void Node::setProjectionNode(Node* node)
 {
     if (m_renderable != nullptr) {

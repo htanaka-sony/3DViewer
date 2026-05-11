@@ -88,50 +88,48 @@ void Clipping::executeFix(const VecPlanef& planes, bool only_visible)
             return;
         }
 
-        auto renderable = node->renderable();
-        if (!renderable) {
+        RefPtr<RenderableNode> renderable = node->renderable();
+        if (renderable == nullptr) {
             return;
         }
 
         switch (renderable->type()) {
             case RenderableType::RenderEditableMesh: {
-                RenderEditableMesh* mesh = (RenderEditableMesh*)renderable;
+                RenderEditableMesh* mesh = (RenderEditableMesh*)renderable.ptr();
                 if (mesh->isEnableEditDisplayData()) {
                     const auto& vertex_list = mesh->displayEditVertices();
                     const auto& index_list  = mesh->displayEditIndices();
                     if (vertex_list.empty() || index_list.empty()) {
                         auto mesh_obj = Mesh::createObject();
                         node->setObject(mesh_obj.ptr());    /// 空メッシュ
+                        node->copyRenderableState(renderable.ptr());
                     }
                     else {
-                        int draw_priority = mesh->drawPriority();    /// 参照なくなるので保持
-
                         auto        mesh_obj    = Mesh::createObject();
                         RenderMesh* render_mesh = (RenderMesh*)mesh_obj->renderableObject();
                         render_mesh->setFromEditable(*mesh);
                         node->setObject(mesh_obj.ptr());
-                        node->setDrawPriority(draw_priority);
+                        node->copyRenderableState(renderable.ptr());
                     }
                 }
             } break;
 
             case RenderableType::RenderEditableNormalMesh: {
-                RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable;
+                RenderEditableNormalMesh* mesh = (RenderEditableNormalMesh*)renderable.ptr();
                 if (mesh->isEnableEditDisplayData()) {
                     const auto& vertex_list = mesh->displayEditVertices();
                     const auto& index_list  = mesh->displayEditIndices();
                     if (vertex_list.empty() || index_list.empty()) {
                         auto mesh_obj = NormalMesh::createObject();
                         node->setObject(mesh_obj.ptr());    /// 空メッシュ
+                        node->copyRenderableState(renderable.ptr());
                     }
                     else {
-                        int draw_priority = mesh->drawPriority();
-
                         auto              mesh_obj    = NormalMesh::createObject();
                         RenderNormalMesh* render_mesh = (RenderNormalMesh*)mesh_obj->renderableObject();
                         render_mesh->setFromEditable(*mesh);
                         node->setObject(mesh_obj.ptr());
-                        node->setDrawPriority(draw_priority);
+                        node->copyRenderableState(renderable.ptr());
                     }
                 }
             } break;
