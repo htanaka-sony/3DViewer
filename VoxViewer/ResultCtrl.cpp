@@ -4296,9 +4296,12 @@ bool ResultCtrl::setDSectionMatrix(Node* voxel_2d_scalar, int list_index, int ar
         trans.translate((float)(x_move + 1) * x_move_val, (float)y_move * y_move_val, 0);
 
         /// 回転
+        /// Ry(315°) = Ry(-45°) とすることで、Ry(180°)を追加した等価な変換を実現。
+        /// これにより X 軸方向が反転（scale(-1,...) によるミラーなし）し、
+        /// 高さ方向（col1 = Z軸）はそのまま維持される。
         Matrix4x4f rotate;
         rotate.rotateDegree(90.0f, Point3f(1, 0, 0));
-        rotate.rotateDegree(135.0f, Point3f(0, 1, 0));
+        rotate.rotateDegree(315.0f, Point3f(0, 1, 0));
 
         matrix = trans * rotate;
 
