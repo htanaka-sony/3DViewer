@@ -213,7 +213,7 @@ protected:
     bool m_segments_group_dirty = true;
     bool m_tria_group_dirty     = true;
     bool m_draw_shading         = true;
-    bool m_draw_wireframe       = true;
+    bool m_draw_wireframe       = false;
 
     int m_draw_priority = 0;    /// 描画優先調整
 

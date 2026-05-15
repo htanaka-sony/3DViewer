@@ -4291,6 +4291,14 @@ bool ResultCtrl::setDSectionMatrix(Node* voxel_2d_scalar, int list_index, int ar
         }
     }
     else if (number.toInt() == 135) {
+        auto voxel_2d_scalar_obj = voxel_2d_scalar->object<VoxelScalar>();
+
+        /// 原点ずれる（D断面が微妙にサイズ足りていない）ので調整
+        double x_length = (double)(voxel_2d_scalar_obj->dX() * (double)voxel_2d_scalar_obj->nX()) / sqrt(2.0);
+        if (x_move_val > 0.0) {
+            x_length = std::round((x_length / (double)x_move_val)) * (double)x_move_val;
+        }
+
         /// 移動
         Matrix4x4f trans;
         trans.translate((float)(x_move + 1) * x_move_val, (float)y_move * y_move_val, 0);
@@ -4298,16 +4306,19 @@ bool ResultCtrl::setDSectionMatrix(Node* voxel_2d_scalar, int list_index, int ar
         /// 回転
         Matrix4x4f rotate;
         rotate.rotateDegree(90.0f, Point3f(1, 0, 0));
-        rotate.rotateDegree(135.0f, Point3f(0, 1, 0));
+        rotate.rotateDegree(-45.0f, Point3f(0, 1, 0));
 
-        matrix = trans * rotate;
+        /// 移動2
+        Matrix4x4f trans2;
+        trans2.translate(-x_length * sqrt(2.0), 0, 0);
 
-        auto voxel_2d_scalar_obj = voxel_2d_scalar->object<VoxelScalar>();
+        matrix = trans * rotate * trans2;
+
         voxel_2d_scalar_obj->setBoundaryDeltaX(voxel_2d_scalar_obj->delta().x() * sqrt(2.0));
 
         /// 暫定 - セルがずれる場合とりあえず値を設定しておく
-        float x_trans   = (float)x_move * x_move_val;
-        int   m         = int(x_trans / voxel_2d_scalar_obj->delta().x());
+        float x_trans   = (float)(x_move + 1) * x_move_val - x_length;
+        int   m         = int((floor)(x_trans / voxel_2d_scalar_obj->delta().x()));
         float nearest_x = m * voxel_2d_scalar_obj->delta().x();
         if (fabs(x_trans - nearest_x) > eps) {
             voxel_2d_scalar_obj->setBoundaryOrgX(-fabs(x_trans - nearest_x) * sqrt(2.0));

@@ -5,10 +5,10 @@ cmake_minimum_required(VERSION 3.19)
 #set(APP_BUILD_TYPE "WithPDB")
 
 # Version指定
-project(3DViewer VERSION 1.0.0)
+project(3DViewer VERSION 1.0.1)
 
 # std::execution::par使っているのでMSVCに限定する（MinGW対応していない）
-if(NOT MSVC)
+if(WIN32 AND NOT MSVC)
     message(FATAL_ERROR "This project can only be built with Visual Studio (MSVC).")
 endif()
 
