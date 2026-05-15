@@ -680,7 +680,19 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
     const float drx   = (height > 0.0f) ? (rx_top - rx_bot) / height : 0.0f;
     const float dry   = (height > 0.0f) ? (ry_top - ry_bot) / height : 0.0f;
     auto        sideN = [&](float rxi, float ryi, float ct, float st) -> Point3f {
-        return Point3f(ryi * ct, rxi * st, -rxi * dry * st * st - ryi * drx * ct * ct).normalized();
+        Point3f n(ryi * ct, rxi * st, -rxi * dry * st * st - ryi * drx * ct * ct);
+        if (n.length2() < 1e-12f) {
+            /// 縮退ケース（テーパーで半径が0になった頂点など）:
+            /// 参照半径で限界方向を再計算する
+            /// 例: 円錐先端では rx_top=ry_top=0 のとき、底面半径で方向を復元する
+            const float rx_ref = (rxi > 0.0f) ? rxi : (rx_bot > 0.0f ? rx_bot : rx_top);
+            const float ry_ref = (ryi > 0.0f) ? ryi : (ry_bot > 0.0f ? ry_bot : ry_top);
+            n = Point3f(ry_ref * ct, rx_ref * st, -rx_ref * dry * st * st - ry_ref * drx * ct * ct);
+            if (n.length2() < 1e-12f) {
+                n = Point3f(ct, st, 0.0f);    /// 最終フォールバック: 放射方向
+            }
+        }
+        return n.normalized();
     };
 
     /// ---- 側面: segs_v 枚のquad ----
