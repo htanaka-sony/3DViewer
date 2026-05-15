@@ -683,10 +683,10 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
         Point3f n(ryi * ct, rxi * st, -rxi * dry * st * st - ryi * drx * ct * ct);
         if (n.length2() < 1e-12f) {
             /// 縮退ケース（テーパーで半径が0になった頂点など）:
-            /// 参照半径で限界方向を再計算する
+            /// 上底・下底の大きい方の参照半径で法線方向を再計算する
             /// 例: 円錐先端では rx_top=ry_top=0 のとき、底面半径で方向を復元する
-            const float rx_ref = (rxi > 0.0f) ? rxi : (rx_bot > 0.0f ? rx_bot : rx_top);
-            const float ry_ref = (ryi > 0.0f) ? ryi : (ry_bot > 0.0f ? ry_bot : ry_top);
+            const float rx_ref = (rxi > 0.0f) ? rxi : std::max(rx_bot, rx_top);
+            const float ry_ref = (ryi > 0.0f) ? ryi : std::max(ry_bot, ry_top);
             n = Point3f(ry_ref * ct, rx_ref * st, -rx_ref * dry * st * st - ry_ref * drx * ct * ct);
             if (n.length2() < 1e-12f) {
                 n = Point3f(ct, st, 0.0f);    /// 最終フォールバック: 放射方向
