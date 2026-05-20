@@ -621,8 +621,8 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
     float effective_height = height;
     float effective_taper  = taper_dist;
     const float abs_taper  = std::fabs(taper_dist);
-    const float r_limit    = std::min(radius_x, radius_y);
-    if (abs_taper > r_limit && abs_taper > 0.0f) {
+    const float r_limit    = std::max(0.0f, std::min(radius_x, radius_y));
+    if (abs_taper > r_limit) {
         if (r_limit <= 0.0f) {
             effective_height = 0.0f;
             effective_taper  = 0.0f;
