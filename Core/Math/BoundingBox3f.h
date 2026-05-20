@@ -60,7 +60,10 @@ public:
         m_min = bbox.m_min;
         m_max = bbox.m_max;
         return *this;
-    };
+    }
+
+    inline bool operator==(const BoundingBox3f& b1) const { return (m_min == b1.m_min && m_max == b1.m_max); }
+    inline bool operator!=(const BoundingBox3f& b1) const { return (m_min != b1.m_min || m_max != b1.m_max); }
 
     inline void init()
     {
