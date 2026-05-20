@@ -617,16 +617,32 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
 
     /// テーパー方向に応じて上底・下底の半径を決定
     /// taper_dist > 0: 上部縮小、taper_dist < 0: 下部縮小
+    /// テーパー量が過大で上底/下底が潰れる場合は、潰れる位置まで高さを縮める
+    float effective_height = height;
+    float effective_taper  = taper_dist;
+    const float abs_taper  = std::fabs(taper_dist);
+    const float r_limit    = std::min(radius_x, radius_y);
+    if (abs_taper > r_limit && abs_taper > 0.0f) {
+        if (r_limit <= 0.0f) {
+            effective_height = 0.0f;
+            effective_taper  = 0.0f;
+        }
+        else {
+            effective_height = height * (r_limit / abs_taper);
+            effective_taper  = (taper_dist >= 0.0f) ? r_limit : -r_limit;
+        }
+    }
+
     float rx_bot, ry_bot, rx_top, ry_top;
-    if (taper_dist >= 0.0f) {
+    if (effective_taper >= 0.0f) {
         rx_bot = radius_x;
         ry_bot = radius_y;
-        rx_top = std::max(0.0f, radius_x - taper_dist);
-        ry_top = std::max(0.0f, radius_y - taper_dist);
+        rx_top = std::max(0.0f, radius_x - effective_taper);
+        ry_top = std::max(0.0f, radius_y - effective_taper);
     }
     else {
-        rx_bot = std::max(0.0f, radius_x + taper_dist);
-        ry_bot = std::max(0.0f, radius_y + taper_dist);
+        rx_bot = std::max(0.0f, radius_x + effective_taper);
+        ry_bot = std::max(0.0f, radius_y + effective_taper);
         rx_top = radius_x;
         ry_top = radius_y;
     }
@@ -677,8 +693,8 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
     ///   ∂P/∂t = (-rx(z)*sin(t), ry(z)*cos(t), 0)
     ///   ∂P/∂z = (drx*cos(t), dry*sin(t), 1)
     ///   N = ∂P/∂t × ∂P/∂z = (ry(z)*cos(t), rx(z)*sin(t), -rx(z)*dry*sin²(t) - ry(z)*drx*cos²(t))
-    const float drx   = (height > 0.0f) ? (rx_top - rx_bot) / height : 0.0f;
-    const float dry   = (height > 0.0f) ? (ry_top - ry_bot) / height : 0.0f;
+    const float drx   = (effective_height > 0.0f) ? (rx_top - rx_bot) / effective_height : 0.0f;
+    const float dry   = (effective_height > 0.0f) ? (ry_top - ry_bot) / effective_height : 0.0f;
     auto        sideN = [&](float rxi, float ryi, float ct, float st) -> Point3f {
         Point3f n(ryi * ct, rxi * st, -rxi * dry * st * st - ryi * drx * ct * ct);
         if (n.length2() < 1e-12f) {
@@ -702,8 +718,8 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
         const float   ct1 = cosV[vj + 1], st1 = sinV[vj + 1];
         const Point3f pBot0 = {rx_bot * ct0, ry_bot * st0, 0.0f};
         const Point3f pBot1 = {rx_bot * ct1, ry_bot * st1, 0.0f};
-        const Point3f pTop0 = {rx_top * ct0, ry_top * st0, height};
-        const Point3f pTop1 = {rx_top * ct1, ry_top * st1, height};
+        const Point3f pTop0 = {rx_top * ct0, ry_top * st0, effective_height};
+        const Point3f pTop1 = {rx_top * ct1, ry_top * st1, effective_height};
         addQuadN(pBot0, sideN(rx_bot, ry_bot, ct0, st0), pBot1, sideN(rx_bot, ry_bot, ct1, st1), pTop1,
                  sideN(rx_top, ry_top, ct1, st1), pTop0, sideN(rx_top, ry_top, ct0, st0));
     }
@@ -720,11 +736,11 @@ void RenderNormalMesh::createEllipticalCylinder(float radius_x, float radius_y, 
 
     /// ---- 上底面 (z=height, 法線: +Z) ----
     /// 縮退quad (中心点 + 外周2点) で三角形を生成。上から見てCCW巻き = +Z側からCCW ✓
-    const Point3f topCenter = {0.0f, 0.0f, height};
+    const Point3f topCenter = {0.0f, 0.0f, effective_height};
     const Point3f normTop   = {0.0f, 0.0f, 1.0f};
     for (int vj = 0; vj < segs_v; vj++) {
-        const Point3f eTop0 = {rx_top * cosV[vj], ry_top * sinV[vj], height};
-        const Point3f eTop1 = {rx_top * cosV[vj + 1], ry_top * sinV[vj + 1], height};
+        const Point3f eTop0 = {rx_top * cosV[vj], ry_top * sinV[vj], effective_height};
+        const Point3f eTop1 = {rx_top * cosV[vj + 1], ry_top * sinV[vj + 1], effective_height};
         addQuadFlat(topCenter, eTop0, eTop1, topCenter, normTop);
     }
 
